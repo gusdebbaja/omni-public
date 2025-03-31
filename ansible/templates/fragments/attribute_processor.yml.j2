@@ -1,0 +1,48 @@
+{% set add_labels = {} %}
+{% set remove_labels = [] %}
+{% for item in monitor_vm_infra_metrics | default([]) %}
+  {% if item is mapping and 'process' in item %}
+    {% for proc_item in item.process %}
+      {% if proc_item is mapping and 'name' in proc_item %}
+        {% for proc in proc_item.name %}
+          {% if proc is mapping %}
+            {% for proc_name, proc_config in proc.items() %}
+              {% for config in proc_config %}
+                {% if config is mapping %}
+                  {% if 'add_labels' in config %}
+                    {% for label_item in config.add_labels %}
+                      {% if label_item is mapping %}
+                        {% for label_key, label_value in label_item.items() %}
+                          {% set _ = add_labels.update({label_key: label_value}) %}
+                        {% endfor %}
+                      {% endif %}
+                    {% endfor %}
+                  {% endif %}
+                  {% if 'remove_labels' in config %}
+                    {% for label in config.remove_labels %}
+                      {% set remove_labels = remove_labels + [label] %}
+                    {% endfor %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+{% endfor %}
+
+{% if add_labels or remove_labels %}
+attributes:
+  actions:
+    {% for key, value in add_labels.items() %}
+    - key: {{ key }}
+      value: {{ value }}
+      action: upsert
+    {% endfor %}
+    {% for label in remove_labels %}
+    - key: {{ label }}
+      action: delete
+    {% endfor %}
+{% endif %}

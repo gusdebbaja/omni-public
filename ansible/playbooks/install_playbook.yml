@@ -1,0 +1,20 @@
+---
+- name: Install OpenTelemetry Collector
+  hosts: all
+  gather_facts: true
+  become: true
+  
+  pre_tasks:
+    - name: Include OS-specific variables
+      include_vars: "{{ item }}"
+      with_first_found:
+        - "{{ ansible_os_family }}.yml"
+        - "default.yml"
+      tags: always
+  
+  roles:
+    - common
+    - role: linux_install
+      when: ansible_os_family in ['RedHat', 'Debian']
+    - role: windows_install
+      when: ansible_os_family == 'Windows'

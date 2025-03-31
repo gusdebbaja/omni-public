@@ -1,0 +1,48 @@
+---
+# Tasks for installing OpenTelemetry Collector on Windows
+- name: Check if otelcol-contrib is installed
+  win_stat:
+    path: "{{ otelcol_binary_path }}"
+  register: otelcol_binary
+
+- name: Create otelcol-contrib directories
+  win_file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - "{{ otelcol_config_dir }}"
+    - "{{ otelcol_log_dir }}"
+  when: not otelcol_binary.stat.exists
+
+- name: Download otelcol-contrib package
+  win_get_url:
+    url: "{{ otelcol_download_url }}"
+    dest: "C:\\Temp\\otelcol-contrib-{{ otelcol_contrib_version }}.zip"
+  when: not otelcol_binary.stat.exists
+
+- name: Extract otelcol-contrib package
+  win_unzip:
+    src: "C:\\Temp\\otelcol-contrib-{{ otelcol_contrib_version }}.zip"
+    dest: "{{ otelcol_install_dir }}"
+    delete_archive: yes
+  when: not otelcol_binary.stat.exists
+
+- name: Create otelcol-contrib configuration
+  win_template:
+    src: "{{ role_path }}/../common/templates/otelcol-contrib.yaml.j2"
+    dest: "{{ otelcol_config_path }}"
+  notify: restart otelcol-contrib windows
+
+- name: Install otelcol-contrib as a service
+  win_shell: |
+    & "{{ otelcol_binary_path }}" --config="{{ otelcol_config_path }}" --service install
+  args:
+    creates: "{{ otelcol_service_name }}"
+  when: not otelcol_binary.stat.exists
+
+- name: Start otelcol-contrib service
+  win_service:
+    name: otelcol-contrib
+    state: started
+    start_mode: auto
+  when: not otelcol_binary.stat.exists

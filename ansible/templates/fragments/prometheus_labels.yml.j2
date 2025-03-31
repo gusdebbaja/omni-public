@@ -1,0 +1,32 @@
+exporters:
+  {% if debug | default(false) or sent_to | selectattr('grafana_cloud', 'defined') | list | length > 0 %}
+  otlp:
+    endpoint: {{ otel_exporter_otlp_endpoint | default('localhost:4317') }}
+    tls:
+      insecure: {{ otel_exporter_otlp_insecure | default(true) }}
+  {% endif %}
+  
+  {% if debug | default(false) or sent_to | selectattr('prometheus', 'defined') | list | length > 0 %}
+  prometheus:
+    endpoint: {{ otel_exporter_prometheus_endpoint | default('0.0.0.0:8889') }}
+    namespace: otelcol
+    const_labels:
+      host.name: {{ ansible_hostname }}
+      {% if ansible_os_family == "Windows" %}
+      os.type: windows
+      {% else %}
+      os.type: linux
+      {% endif %}
+      {% include 'fragments/prometheus_labels.yml.j2' %}
+  {% endif %}
+  
+  {% if debug | default(false) or sent_to | selectattr('splunk_enterprise', 'defined') | list | length > 0 %}
+  splunk_hec:
+    endpoint: {{ splunk_hec_endpoint | default('https://localhost:8088/services/collector') }}
+    token: {{ splunk_hec_token | default('00000000-0000-0000-0000-000000000000') }}
+    source: {{ splunk_hec_source | default('otel-collector') }}
+    sourcetype: {{ splunk_hec_sourcetype | default('otel') }}
+    index: {{ splunk_hec_index | default('main') }}
+    tls:
+      insecure: {{ splunk_hec_insecure | default(false) }}
+  {% endif %}

@@ -1,0 +1,15 @@
+environments:
+  production:
+    otel_memory_limit_mib: 1000
+    otel_memory_spike_limit_mib: 200
+    otel_hostmetrics_interval: 30s
+    enable_splunk_hec: true
+  
+  staging:
+    otel_memory_limit_mib: 750
+    otel_memory_spike_limit_mib: 150
+    otel_hostmetrics_interval: 45s
+    
+  development:
+    debug_mode: true
+    detailed_metrics: true

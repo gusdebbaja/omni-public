@@ -1,0 +1,126 @@
+---
+# Tasks for upgrading OpenTelemetry Collector
+- name: Check if otelcol-contrib is installed (Linux)
+  stat:
+    path: "{{ otelcol_binary_path }}"
+  register: otelcol_binary
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Check if otelcol-contrib is installed (Windows)
+  win_stat:
+    path: "{{ otelcol_binary_path }}"
+  register: otelcol_binary_win
+  when: ansible_os_family == 'Windows'
+
+- name: Set fact for installation status
+  set_fact:
+    otelcol_installed: "{{ (ansible_os_family in ['RedHat', 'Debian'] and otelcol_binary.stat.exists) or (ansible_os_family == 'Windows' and otelcol_binary_win.stat.exists) }}"
+
+- name: Fail if otelcol-contrib is not installed
+  fail:
+    msg: "OpenTelemetry Collector is not installed on {{ inventory_hostname }}. Please run the install_playbook first."
+  when: not otelcol_installed
+
+- name: Get current version (Linux)
+  command: "{{ otelcol_binary_path }} --version"
+  register: current_version
+  changed_when: false
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Get current version (Windows)
+  win_shell: |
+    & "{{ otelcol_binary_path }}" --version
+  register: current_version_win
+  changed_when: false
+  when: ansible_os_family == 'Windows'
+
+- name: Display current version
+  debug:
+    msg: "Current version: {{ current_version.stdout if ansible_os_family in ['RedHat', 'Debian'] else current_version_win.stdout }}"
+
+- name: Stop otelcol-contrib service (Linux)
+  systemd:
+    name: otelcol-contrib
+    state: stopped
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Stop otelcol-contrib service (Windows)
+  win_service:
+    name: otelcol-contrib
+    state: stopped
+  when: ansible_os_family == 'Windows'
+
+- name: Download new otelcol-contrib package (Linux)
+  get_url:
+    url: "{{ otelcol_download_url }}"
+    dest: "/tmp/otelcol-contrib-{{ otelcol_contrib_version }}.tar.gz"
+    mode: 0644
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Extract new otelcol-contrib package (Linux)
+  unarchive:
+    src: "/tmp/otelcol-contrib-{{ otelcol_contrib_version }}.tar.gz"
+    dest: "/tmp"
+    remote_src: yes
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Install new otelcol-contrib binary (Linux)
+  copy:
+    src: "/tmp/otelcol-contrib"
+    dest: "{{ otelcol_binary_path }}"
+    mode: 0755
+    remote_src: yes
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Download new otelcol-contrib package (Windows)
+  win_get_url:
+    url: "{{ otelcol_download_url }}"
+    dest: "C:\\Temp\\otelcol-contrib-{{ otelcol_contrib_version }}.zip"
+  when: ansible_os_family == 'Windows'
+
+- name: Uninstall otelcol-contrib service (Windows)
+  win_shell: |
+    & "{{ otelcol_binary_path }}" --config="{{ otelcol_config_path }}" --service uninstall
+  when: ansible_os_family == 'Windows'
+
+- name: Extract new otelcol-contrib package (Windows)
+  win_unzip:
+    src: "C:\\Temp\\otelcol-contrib-{{ otelcol_contrib_version }}.zip"
+    dest: "{{ otelcol_install_dir }}"
+    delete_archive: yes
+  when: ansible_os_family == 'Windows'
+
+- name: Install otelcol-contrib as a service (Windows)
+  win_shell: |
+    & "{{ otelcol_binary_path }}" --config="{{ otelcol_config_path }}" --service install
+  when: ansible_os_family == 'Windows'
+
+- name: Start otelcol-contrib service (Linux)
+  systemd:
+    name: otelcol-contrib
+    state: started
+    daemon_reload: yes
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Start otelcol-contrib service (Windows)
+  win_service:
+    name: otelcol-contrib
+    state: started
+  when: ansible_os_family == 'Windows'
+
+- name: Get new version (Linux)
+  command: "{{ otelcol_binary_path }} --version"
+  register: new_version
+  changed_when: false
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Get new version (Windows)
+  win_shell: |
+    & "{{ otelcol_binary_path }}" --version
+  register: new_version_win
+  changed_when: false
+  when: ansible_os_family == 'Windows'
+
+- name: Display upgrade results
+  debug:
+    msg: "Upgraded from {{ current_version.stdout if ansible_os_family in ['RedHat', 'Debian'] else current_version_win.stdout }} to {{ new_version.stdout if ansible_os_family in ['RedHat', 'Debian'] else new_version_win.stdout }}"

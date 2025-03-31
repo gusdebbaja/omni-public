@@ -1,0 +1,85 @@
+---
+# Tasks for uninstalling OpenTelemetry Collector
+- name: Check if otelcol-contrib is installed (Linux)
+  stat:
+    path: "{{ otelcol_binary_path }}"
+  register: otelcol_binary
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Check if otelcol-contrib is installed (Windows)
+  win_stat:
+    path: "{{ otelcol_binary_path }}"
+  register: otelcol_binary_win
+  when: ansible_os_family == 'Windows'
+
+- name: Set fact for installation status
+  set_fact:
+    otelcol_installed: "{{ (ansible_os_family in ['RedHat', 'Debian'] and otelcol_binary.stat.exists) or (ansible_os_family == 'Windows' and otelcol_binary_win.stat.exists) }}"
+
+- name: Stop and disable otelcol-contrib service (Linux)
+  systemd:
+    name: otelcol-contrib
+    state: stopped
+    enabled: no
+  when: 
+    - ansible_os_family in ['RedHat', 'Debian']
+    - otelcol_installed
+
+- name: Uninstall otelcol-contrib service (Windows)
+  win_shell: |
+    & "{{ otelcol_binary_path }}" --config="{{ otelcol_config_path }}" --service uninstall
+  args:
+    removes: "{{ otelcol_service_name }}"
+  when: 
+    - ansible_os_family == 'Windows'
+    - otelcol_installed
+
+- name: Remove otelcol-contrib binary (Linux)
+  file:
+    path: "{{ otelcol_binary_path }}"
+    state: absent
+  when: 
+    - ansible_os_family in ['RedHat', 'Debian']
+    - otelcol_installed
+
+- name: Remove otelcol-contrib service file (Linux)
+  file:
+    path: /etc/systemd/system/otelcol-contrib.service
+    state: absent
+  when: 
+    - ansible_os_family in ['RedHat', 'Debian']
+    - otelcol_installed
+
+- name: Remove otelcol-contrib configuration (Linux)
+  file:
+    path: "{{ otelcol_config_path }}"
+    state: absent
+  when: 
+    - ansible_os_family in ['RedHat', 'Debian']
+    - otelcol_installed
+
+- name: Remove otelcol-contrib installation directory (Windows)
+  win_file:
+    path: "{{ otelcol_install_dir }}"
+    state: absent
+  when: 
+    - ansible_os_family == 'Windows'
+    - otelcol_installed
+
+- name: Remove otelcol-contrib configuration directory (Windows)
+  win_file:
+    path: "{{ otelcol_config_dir }}"
+    state: absent
+  when: 
+    - ansible_os_family == 'Windows'
+    - otelcol_installed
+
+- name: Display uninstallation status
+  debug:
+    msg: "OpenTelemetry Collector has been uninstalled from {{ inventory_hostname }}"
+  when: otelcol_installed
+
+- name: Display not installed message
+  debug:
+    msg: "OpenTelemetry Collector was not installed on {{ inventory_hostname }}"
+  when: not otelcol_installed

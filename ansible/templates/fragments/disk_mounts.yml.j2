@@ -1,0 +1,14 @@
+{% set disk_mounts = [] %}
+{% for item in monitor_vm_infra_metrics | default([]) %}
+  {% if item is mapping and 'disk' in item %}
+    {% for mount in item.disk %}
+      {% set disk_mounts = disk_mounts + [mount] %}
+    {% endfor %}
+  {% endif %}
+{% endfor %}
+{% if disk_mounts | length > 0 %}
+include_mount_points:
+  {% for mount in disk_mounts %}
+  - {{ mount }}
+  {% endfor %}
+{% endif %}

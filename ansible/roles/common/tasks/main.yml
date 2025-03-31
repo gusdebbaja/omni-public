@@ -1,0 +1,27 @@
+---
+# Common tasks for all hosts
+- name: Set OS-specific variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_os_family }}.yml"
+    - "default.yml"
+  tags: always
+
+- name: Create otelcol-contrib directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+  with_items:
+    - "{{ otelcol_config_dir }}"
+    - "{{ otelcol_log_dir }}"
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Create otelcol-contrib directories (Windows)
+  win_file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - "{{ otelcol_config_dir }}"
+    - "{{ otelcol_log_dir }}"
+  when: ansible_os_family == 'Windows'

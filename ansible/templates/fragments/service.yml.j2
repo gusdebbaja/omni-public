@@ -1,0 +1,26 @@
+service:
+  pipelines:
+    metrics:
+      receivers: [{% if monitor_vm_infra_metrics is defined or debug | default(false) %}hostmetrics, {% endif %}otlp]
+      processors: [memory_limiter, batch, resourcedetection{% if add_labels | default({}) or remove_labels | default([]) %}, attributes{% endif %}]
+      exporters: [
+        {% if debug | default(false) or sent_to | selectattr('grafana_cloud', 'defined') | list | length > 0 %}otlp{% if debug | default(false) or sent_to | selectattr('prometheus', 'defined') | list | length > 0 or sent_to | selectattr('splunk_enterprise', 'defined') | list | length > 0 %}, {% endif %}{% endif %}
+        {% if debug | default(false) or sent_to | selectattr('prometheus', 'defined') | list | length > 0 %}prometheus{% if debug | default(false) or sent_to | selectattr('splunk_enterprise', 'defined') | list | length > 0 %}, {% endif %}{% endif %}
+        {% if debug | default(false) or sent_to | selectattr('splunk_enterprise', 'defined') | list | length > 0 %}splunk_hec/metrics{% endif %}
+      ]
+    
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resourcedetection{% if add_labels | default({}) or remove_labels | default([]) %}, attributes{% endif %}]
+      exporters: [
+        {% if debug | default(false) or sent_to | selectattr('grafana_cloud', 'defined') | list | length > 0 %}otlp{% if debug | default(false) or sent_to | selectattr('splunk_enterprise', 'defined') | list | length > 0 %}, {% endif %}{% endif %}
+        {% if debug | default(false) or sent_to | selectattr('splunk_enterprise', 'defined') | list | length > 0 %}splunk_hec/logs{% endif %}
+      ]
+    
+    logs:
+      receivers: [otlp{% if debug | default(false) or logging_processes | default([]) | length > 0 %}{% if ansible_os_family == "Windows" %}, windowseventlog{% else %}, filelog{% endif %}{% endif %}]
+      processors: [memory_limiter, batch, resourcedetection{% if add_labels | default({}) or remove_labels | default([]) %}, attributes{% endif %}]
+      exporters: [
+        {% if debug | default(false) or sent_to | selectattr('grafana_cloud', 'defined') | list | length > 0 %}otlp{% if debug | default(false) or sent_to | selectattr('splunk_enterprise', 'defined') | list | length > 0 %}, {% endif %}{% endif %}
+        {% if debug | default(false) or sent_to | selectattr('splunk_enterprise', 'defined') | list | length > 0 %}splunk_hec/logs{% endif %}
+      ]

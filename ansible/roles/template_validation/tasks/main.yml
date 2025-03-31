@@ -1,0 +1,39 @@
+---
+# Tasks for validating OpenTelemetry Collector template
+- name: Create temporary directory
+  tempfile:
+    state: directory
+    suffix: otelcol_validation
+  register: temp_dir
+  delegate_to: localhost
+  become: false
+
+- name: Generate otelcol-contrib configuration
+  template:
+    src: "{{ role_path }}/../common/templates/otelcol-contrib.yaml.j2"
+    dest: "{{ temp_dir.path }}/otelcol-contrib.yaml"
+  delegate_to: localhost
+  become: false
+
+- name: Display generated configuration
+  debug:
+    msg: "{{ lookup('file', temp_dir.path + '/otelcol-contrib.yaml') | from_yaml | to_nice_yaml }}"
+
+- name: Validate configuration syntax
+  command: yamllint -d relaxed {{ temp_dir.path }}/otelcol-contrib.yaml
+  register: yamllint_result
+  failed_when: false
+  changed_when: false
+  delegate_to: localhost
+  become: false
+
+- name: Display validation results
+  debug:
+    msg: "{{ 'Configuration syntax is valid' if yamllint_result.rc == 0 else 'Configuration syntax has issues: ' + yamllint_result.stdout }}"
+
+- name: Clean up temporary directory
+  file:
+    path: "{{ temp_dir.path }}"
+    state: absent
+  delegate_to: localhost
+  become: false

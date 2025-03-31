@@ -1,0 +1,13 @@
+---
+# Common handlers
+- name: restart otelcol-contrib
+  service:
+    name: otelcol-contrib
+    state: restarted
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: restart otelcol-contrib windows
+  win_service:
+    name: otelcol-contrib
+    state: restarted
+  when: ansible_os_family == 'Windows'
