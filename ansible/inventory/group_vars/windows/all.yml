@@ -1,0 +1,4 @@
+ansible_connection=psrp
+ansible_psrp_transport=ntlm
+ansible_psrp_protocol=https
+ansible_psrp_port=5986
