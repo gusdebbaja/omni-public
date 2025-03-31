@@ -1,7 +1,24 @@
 ---
 - name: Validate OpenTelemetry Collector Installation
   hosts: all
-  gather_facts: true
+  gather_facts: false  # Changed to false initially
+  
+  pre_tasks:
+    - name: Check if Python 3 is installed
+      raw: command -v python3 || echo "not installed"
+      register: python3_check
+      changed_when: false
+      
+    - name: Install Python 3 on RedHat systems if not present
+      raw: yum install -y python3
+      when: 
+        - "'redhat' in inventory_hostname or 'rhel' in inventory_hostname"
+        - "'not installed' in python3_check.stdout"
+      changed_when: true
+      become: true
+      
+    - name: Gather facts after ensuring Python is installed
+      setup:
   
   roles:
     - validation
