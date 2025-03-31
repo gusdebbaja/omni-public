@@ -3,6 +3,7 @@
 This Ansible project manages the OpenTelemetry Collector Contrib on Windows and Linux (RedHat and Ubuntu) hosts. It provides a complete set of playbooks for installation, configuration, validation, deployment, upgrade, and uninstallation.
 
 ## Project Structure
+```plaintext
 ansible/
 ├── inventory/
 │   └── hosts.yml
@@ -25,8 +26,6 @@ ansible/
 ├── deployment_playbook.yml
 ├── uninstall_playbook.yml
 └── upgrade_playbook.yml
-
-```plaintext
 ```
 
 
