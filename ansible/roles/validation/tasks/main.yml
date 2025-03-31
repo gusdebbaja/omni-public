@@ -1,0 +1,21 @@
+---
+# Tasks for validating OpenTelemetry Collector installation
+- name: Check if otelcol-contrib is installed (Linux)
+  stat:
+    path: "{{ otelcol_binary_path | default('/usr/local/bin/otelcol-contrib') }}"
+  register: otelcol_binary
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Check if otelcol-contrib is installed (Windows)
+  win_stat:
+    path: "{{ otelcol_binary_path | default('C:\\Program Files\\OpenTelemetry Collector Contrib\\otelcol-contrib.exe') }}"
+  register: otelcol_binary_win
+  when: ansible_os_family == 'Windows'
+
+- name: Set fact for installation status
+  set_fact:
+    otelcol_installed: "{{ (ansible_os_family in ['RedHat', 'Debian'] and otelcol_binary.stat.exists) or (ansible_os_family == 'Windows' and otelcol_binary_win.stat.exists) }}"
+
+- name: Display installation status
+  debug:
+    msg: "OpenTelemetry Collector is {{ 'installed' if otelcol_installed else 'not installed' }} on {{ inventory_hostname }}"
