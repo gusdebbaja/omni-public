@@ -8,17 +8,20 @@
       raw: command -v python3 || echo "not installed"
       register: python3_check
       changed_when: false
+      ignore_unreachable: true
       
     - name: Install Python 3 on RedHat systems if not present
       raw: yum install -y python3
       when: 
         - "'redhat' in inventory_hostname or 'rhel' in inventory_hostname"
-        - "'not installed' in python3_check.stdout"
+        - "'not installed' in (python3_check.stdout | default('')) or 'not installed' in (python3_check.stderr | default(''))"
       changed_when: true
       become: true
+      ignore_unreachable: true
       
     - name: Gather facts after ensuring Python is installed
       setup:
+      ignore_unreachable: true
   
   roles:
     - validation
