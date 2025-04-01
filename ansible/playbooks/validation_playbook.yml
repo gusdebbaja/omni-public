@@ -1,23 +1,27 @@
 ---
 - name: Validate OpenTelemetry Collector Installation
   hosts: all
-  gather_facts: false  # Changed to false initially
+  gather_facts: false
   
   pre_tasks:
-    - name: Check if Python 3 is installed
-      raw: command -v python3 || echo "not installed"
-      register: python3_check
+    - name: Check Python version on Linux hosts
+      raw: python3 --version || python --version || echo "No Python found"
+      register: python_version
       changed_when: false
       ignore_unreachable: true
       
-    - name: Install Python 3 on RedHat systems if not present
-      raw: yum install -y python3
+    - name: Install Python 3 on RedHat systems if needed
+      raw: sudo yum install -y python36 || sudo yum install -y python3
       when: 
         - "'redhat' in inventory_hostname or 'rhel' in inventory_hostname"
-        - "'not installed' in (python3_check.stdout | default('')) or 'not installed' in (python3_check.stderr | default(''))"
-      changed_when: true
+        - "'No Python found' in python_version.stdout or python_version is failed"
       become: true
       ignore_unreachable: true
+      
+    - name: Set Python interpreter explicitly
+      set_fact:
+        ansible_python_interpreter: "{{ '/usr/bin/python3.6' if 'Python 3.6' in python_version.stdout else '/usr/bin/python3' }}"
+      when: "'No Python found' not in python_version.stdout and python_version is not failed"
       
     - name: Gather facts after ensuring Python is installed
       setup:
