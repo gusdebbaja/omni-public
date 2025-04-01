@@ -4,17 +4,19 @@
   stat:
     path: "{{ otelcol_binary_path | default('/usr/local/bin/otelcol-contrib') }}"
   register: otelcol_binary
-  when: ansible_os_family in ['RedHat', 'Debian']
+  when: ansible_facts.get('os_family', '') in ['RedHat', 'Debian'] or 
+        (inventory_hostname is search('redhat') or inventory_hostname is search('ubuntu'))
 
 - name: Check if otelcol-contrib is installed (Windows)
   win_stat:
     path: "{{ otelcol_binary_path | default('C:\\Program Files\\OpenTelemetry Collector Contrib\\otelcol-contrib.exe') }}"
   register: otelcol_binary_win
-  when: ansible_os_family == 'Windows'
+  when: ansible_facts.get('os_family', '') == 'Windows' or 
+        (inventory_hostname is search('windows'))
 
 - name: Set fact for installation status
   set_fact:
-    otelcol_installed: "{{ (ansible_os_family in ['RedHat', 'Debian'] and otelcol_binary.stat.exists) or (ansible_os_family == 'Windows' and otelcol_binary_win.stat.exists) }}"
+    otelcol_installed: "{{ (otelcol_binary.stat.exists | default(false)) or (otelcol_binary_win.stat.exists | default(false)) }}"
 
 - name: Display installation status
   debug:
