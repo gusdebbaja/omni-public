@@ -1,31 +1,78 @@
 ---
-- name: Validate OpenTelemetry Collector Installation
+- name: Validate OpenTelemetry Collector Installation Prerequisites
   hosts: all
-  gather_facts: false
-  
-  pre_tasks:
-    - name: Check Python version on Linux hosts
-      raw: python3 --version || python --version || echo "No Python found"
-      register: python_version
+  gather_facts: true  # Gather all facts initially - more reliable
+  tasks:
+    - name: Check Python installation on Linux
+      command: "which python3"
+      register: python_check
       changed_when: false
-      ignore_unreachable: true
+      failed_when: false  # Better than ignore_errors
+      when: ansible_os_family in ["RedHat", "Debian"]
       
-    - name: Install Python 3 on RedHat systems if needed
-      raw: sudo yum install -y python36 || sudo yum install -y python3
-      when: 
-        - "'redhat' in inventory_hostname or 'rhel' in inventory_hostname"
-        - "'No Python found' in python_version.stdout or python_version is failed"
+    - name: Install Python 3 on RedHat systems
+      package:
+        name: python3
+        state: present
+      when:
+        - ansible_os_family == "RedHat"
+        - python_check.rc != 0
       become: true
-      ignore_unreachable: true
       
-    - name: Set Python interpreter explicitly
+    - name: Install Python 3 on Debian systems
+      package:
+        name: python3
+        state: present
+      when:
+        - ansible_os_family == "Debian"
+        - python_check.rc != 0
+      become: true
+      
+    - name: Check Python installation on Windows
+      win_shell: |
+        try { 
+          $pythonVersion = python --version 2>&1
+          Write-Output "Python found"
+          exit 0
+        } catch {
+          Write-Output "Python not found"
+          exit 1
+        }
+      register: windows_python_check
+      changed_when: false
+      failed_when: false
+      when: ansible_os_family == "Windows"
+          
+    - name: Install Python 3 on Windows
+      win_package:
+        path: "https://www.python.org/ftp/python/3.9.13/python-3.9.13-amd64.exe"
+        product_id: "{1AC2A3CA-D5D4-4FAA-BF07-D6E96C095C0B}"  # Example product ID
+        arguments: '/quiet InstallAllUsers=1 PrependPath=1'
+        state: present
+      when: 
+        - ansible_os_family == "Windows"
+        - windows_python_check.stdout is defined 
+        - windows_python_check.stdout is search("Python not found")
+          
+    - name: Set Python interpreter based on OS
       set_fact:
-        ansible_python_interpreter: "{{ '/usr/bin/python3.6' if 'Python 3.6' in python_version.stdout else '/usr/bin/python3' }}"
-      when: "'No Python found' not in python_version.stdout and python_version is not failed"
-      
-    - name: Gather facts after ensuring Python is installed
+        ansible_python_interpreter: "{{ '/usr/bin/python3' if ansible_os_family in ['RedHat', 'Debian'] else 'python' }}"
+          
+    - name: Regather facts after Python installation (Linux)
       setup:
-      ignore_unreachable: true
-  
+      when: >
+        ansible_os_family in ['RedHat', 'Debian'] and 
+        python_check is defined and 
+        python_check.rc is defined and 
+        python_check.rc != 0
+        
+    - name: Regather facts after Python installation (Windows)
+      setup:
+      when: >
+        ansible_os_family == 'Windows' and 
+        windows_python_check is defined and 
+        windows_python_check.stdout is defined and 
+        'Python not found' in windows_python_check.stdout
+
   roles:
     - validation

@@ -143,6 +143,20 @@ For both PSRP and WinRM, these authentication methods are available, listed in o
 3. **Generate Server Certificate** on each Windows target:
 
    ```powershell
+   # Create a new local user account for Ansible
+   $Username = "ansible"
+   $Password = ConvertTo-SecureString "YourStrongPassword" -AsPlainText -Force
+   New-LocalUser -Name $Username -Password $Password -FullName "Ansible Automation Account" -Description "Service account for Ansible automation" -AccountNeverExpires
+
+   # Add the user to the Remote Management Users group (required for PSRP)
+   Add-LocalGroupMember -Group "Remote Management Users" -Member $Username
+
+   # Optionally, add to Administrators if you need elevated privileges for your playbooks
+   # Add-LocalGroupMember -Group "Administrators" -Member $Username
+
+   # Verify the user was added to the correct group
+   Get-LocalGroupMember -Group "Remote Management Users"
+
    $serverCert = New-SelfSignedCertificate -CertStoreLocation "Cert:\LocalMachine\My" -DnsName "server.example.com" -FriendlyName "WinRM HTTPS Certificate" -KeyUsage KeyEncipherment,DigitalSignature -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.1")
    ```
 
@@ -274,17 +288,21 @@ When certificates or Kerberos are not feasible, NTLM provides a simpler (though 
    [windows_servers:vars]
    # For PSRP
    ansible_connection=psrp
-   ansible_psrp_transport=ntlm
-   ansible_psrp_protocol=https
-   ansible_psrp_port=5986
-   ansible_user=administrator
+   ansible_connection: psrp
+   ansible_psrp_transport: ntlm
+   ansible_psrp_protocol: https
+   ansible_psrp_port: 5986
+   ansible_psrp_ignore_proxy: true
+   ansible_psrp_verify: false
+   ansible_psrp_cert_validation: ignore
+   ansible_password: "{{ windows_ansible_password }}"
    ansible_password=SecurePassword123
    
    # For WinRM (if used instead)
    ansible_connection=winrm
    ansible_winrm_transport=ntlm
    ansible_port=5986
-   ansible_user=administrator
+   ansible_user=ansible
    ansible_password=SecurePassword123
    ```
 
