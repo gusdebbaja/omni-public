@@ -1,1 +1,2 @@
+otelcol_force_install: false
 otelcol_contrib_version: 0.121.0

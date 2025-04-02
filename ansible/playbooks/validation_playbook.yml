@@ -28,7 +28,7 @@
         - python_check.rc != 0
       become: true
       
-    - name: Check Python installation on Windows
+    - name: Check if Python is installed on Windows
       win_shell: |
         try { 
           $pythonVersion = python --version 2>&1
@@ -42,17 +42,41 @@
       changed_when: false
       failed_when: false
       when: ansible_os_family == "Windows"
-          
-    - name: Install Python 3 on Windows
-      win_package:
-        path: "https://www.python.org/ftp/python/3.9.13/python-3.9.13-amd64.exe"
-        product_id: "{1AC2A3CA-D5D4-4FAA-BF07-D6E96C095C0B}"  # Example product ID
-        arguments: '/quiet InstallAllUsers=1 PrependPath=1'
-        state: present
+
+    - name: Ensure no other installations are running
+      win_shell: |
+        Get-Process | Where-Object { $_.ProcessName -like "*python*" } | Stop-Process -Force
+      ignore_errors: yes
       when: 
         - ansible_os_family == "Windows"
-        - windows_python_check.stdout is defined 
         - windows_python_check.stdout is search("Python not found")
+
+    - name: Download Python 3 installer on Windows
+      win_get_url:
+        url: "https://www.python.org/ftp/python/3.9.13/python-3.9.13-amd64.exe"
+        dest: "C:\\Windows\\Temp\\python_installer.exe"
+      when: 
+        - ansible_os_family == "Windows"
+        - windows_python_check.stdout is search("Python not found")
+
+    - name: Install Python 3 on Windows
+      win_shell: |
+        Start-Process -FilePath "C:\Windows\Temp\python_installer.exe" -ArgumentList "/quiet", "InstallAllUsers=1", "PrependPath=1", "Include_test=0" -Wait -NoNewWindow
+      args:
+        executable: powershell.exe
+      register: python_install
+      changed_when: python_install.rc == 0
+      failed_when: python_install.rc != 0
+      when: 
+        - ansible_os_family == "Windows"
+        - windows_python_check.stdout is search("Python not found")
+
+    - name: Remove Python installer
+      win_file:
+        path: "C:\\Windows\\Temp\\python_installer.exe"
+        state: absent
+      when: 
+        - ansible_os_family == "Windows"
           
     - name: Set Python interpreter based on OS
       set_fact:

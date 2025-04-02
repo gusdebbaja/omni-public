@@ -1,5 +1,4 @@
 ---
-# Handlers for Linux installation
 - name: restart otelcol-contrib
   systemd:
     name: otelcol-contrib

@@ -5,6 +5,66 @@
     path: "{{ otelcol_binary_path }}"
   register: otelcol_binary
 
+- name: Set installation required flag
+  set_fact:
+    otelcol_install_required: "{{ not otelcol_binary.stat.exists or otelcol_force_install | bool }}"
+
+- name: Stop and remove existing service when forcing reinstallation
+  block:
+    - name: Stop otelcol-contrib service
+      win_service:
+        name: otelcol-contrib
+        state: stopped
+      failed_when: false
+
+    - name: Remove otelcol-contrib service
+      win_shell: |
+        & "{{ otelcol_binary_path }}" --service uninstall
+      failed_when: false
+
+    - name: Remove otelcol-contrib binary directory
+      win_file:
+        path: "{{ otelcol_install_dir }}"
+        state: absent
+  when: 
+    - otelcol_binary.stat.exists 
+    - otelcol_force_install | bool
+
+- name: Create otelcol-contrib service account
+  win_user:
+    name: "otelcol-contrib"
+    password: "{{ otelcol_service_password }}"  # This should come from Ansible Vault
+    password_never_expires: yes
+    description: "OpenTelemetry Collector service account"
+    user_cannot_change_password: yes
+    account_disabled: no
+    state: present
+  register: service_account
+  when: otelcol_install_required
+
+- name: Grant service account 'Log on as a service' right
+  win_shell: |
+    $tempPath = [System.IO.Path]::GetTempFileName()
+    secedit /export /cfg $tempPath
+    $content = Get-Content -Path $tempPath
+    $logonAsServiceSetting = ($content | Select-String -Pattern "SeServiceLogonRight").ToString()
+    
+    if ($logonAsServiceSetting) {
+      # Append to existing accounts
+      $updatedSetting = $logonAsServiceSetting -replace "SeServiceLogonRight = ", "SeServiceLogonRight = otelcol-contrib,"
+      $content = $content -replace [regex]::Escape($logonAsServiceSetting), $updatedSetting
+    } else {
+      # Create new setting
+      $content += "SeServiceLogonRight = otelcol-contrib"
+    }
+    
+    $content | Out-File $tempPath
+    secedit /configure /db c:\windows\security\local.sdb /cfg $tempPath /areas USER_RIGHTS
+    Remove-Item -Path $tempPath
+  when: 
+    - otelcol_install_required
+    - service_account is changed
+
 - name: Create otelcol-contrib directories
   win_file:
     path: "{{ item }}"
@@ -12,20 +72,20 @@
   with_items:
     - "{{ otelcol_config_dir }}"
     - "{{ otelcol_log_dir }}"
-  when: not otelcol_binary.stat.exists
+  when: otelcol_install_required
 
 - name: Download otelcol-contrib package
   win_get_url:
     url: "{{ otelcol_download_url }}"
     dest: "C:\\Temp\\otelcol-contrib-{{ otelcol_contrib_version }}.zip"
-  when: not otelcol_binary.stat.exists
+  when: otelcol_install_required
 
 - name: Extract otelcol-contrib package
   win_unzip:
     src: "C:\\Temp\\otelcol-contrib-{{ otelcol_contrib_version }}.zip"
     dest: "{{ otelcol_install_dir }}"
     delete_archive: yes
-  when: not otelcol_binary.stat.exists
+  when: otelcol_install_required
 
 - name: Create otelcol-contrib configuration
   win_template:
@@ -33,16 +93,31 @@
     dest: "{{ otelcol_config_path }}"
   notify: restart otelcol-contrib windows
 
-- name: Install otelcol-contrib as a service
+- name: Set directory permissions for service account
+  win_acl:
+    path: "{{ item }}"
+    user: otelcol-contrib
+    rights: ReadAndExecute
+    type: allow
+    state: present
+    inherit: yes
+  with_items:
+    - "{{ otelcol_install_dir }}"
+    - "{{ otelcol_config_dir }}"
+    - "{{ otelcol_log_dir }}"
+  when: otelcol_install_required
+
+- name: Install otelcol-contrib as a service with specific account
   win_shell: |
-    & "{{ otelcol_binary_path }}" --config="{{ otelcol_config_path }}" --service install
+    & "{{ otelcol_binary_path }}" --config="{{ otelcol_config_path }}" --service install --service.username=".\otelcol-contrib" --service.password="{{ otelcol_service_password }}"
   args:
     creates: "{{ otelcol_service_name }}"
-  when: not otelcol_binary.stat.exists
+  when: otelcol_install_required
+  no_log: true  # Hide the output which might contain the password
 
 - name: Start otelcol-contrib service
   win_service:
     name: otelcol-contrib
     state: started
     start_mode: auto
-  when: not otelcol_binary.stat.exists
+  when: otelcol_install_required
