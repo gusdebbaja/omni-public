@@ -39,6 +39,7 @@ yarn-error.log
 
 # IDE and editor files
 .idea/
+.qodo/
 .vscode/
 *.swp
 *.swo
