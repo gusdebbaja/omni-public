@@ -10,6 +10,7 @@
 
 - name: Create otelcol-contrib directories
   become: true
+  become_method: sudo
   file:
     path: "{{ item }}"
     state: directory

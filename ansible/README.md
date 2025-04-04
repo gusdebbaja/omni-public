@@ -191,3 +191,10 @@ EOF
 sudo apparmor_parser -r /etc/apparmor.d/usr.local.bin.otelcol-contrib
  ```
 ```
+
+One can deploy 2 VMs using the commands below 
+``` bash
+sudo virt-install --name rhel-vm --ram 2048 --vcpus 2 --disk path=/var/lib/libvirt/images/rhel-vm.qcow2,size=20 --os-type linux --os-variant rhel9 --network bridge=virbr0 --graphics spice --console pty,target_type=serial --cdrom /path/to/iso/rhel-9.5-x86_64-boot.iso
+
+sudo virt-install --name win10-vm --ram 4096 --vcpus 4 --disk path=/var/lib/libvirt/images/win10-vm.qcow2,size=50 --os-type windows --os-variant win10 --network bridge=virbr0 --graphics spice --cdrom /path/to/iso/SERVER_EVAL_x64FRE_en-us.iso
+```
