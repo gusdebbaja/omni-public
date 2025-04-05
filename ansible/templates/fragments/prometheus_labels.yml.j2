@@ -17,7 +17,6 @@ exporters:
       {% else %}
       os.type: linux
       {% endif %}
-      {% include 'fragments/prometheus_labels.yml.j2' %}
   {% endif %}
   
   {% if debug | default(false) or sent_to | selectattr('splunk_enterprise', 'defined') | list | length > 0 %}

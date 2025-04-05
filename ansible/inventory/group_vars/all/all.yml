@@ -1,2 +1,5 @@
 otelcol_force_install: false
 otelcol_contrib_version: 0.121.0
+
+sent_to:
+  - splunk_enterprise: [] # send all data to Splunk

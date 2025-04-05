@@ -1,14 +1,36 @@
 ---
 # Tasks for installing OpenTelemetry Collector on Linux
 
-- name: Check if otelcol-contrib is installed
+- name: Check if otelcol-contrib binary exists
   stat:
     path: "{{ otelcol_binary_path }}"
   register: otelcol_binary
 
-- name: Set installation required flag
+- name: Check if otelcol-contrib service is active
+  service_facts:
+  when: otelcol_binary.stat.exists
+
+- name: Check if otelcol-contrib service file exists
+  stat:
+    path: "/etc/systemd/system/otelcol-contrib.service"
+  register: otelcol_service_file
+  when: otelcol_binary.stat.exists
+
+- name: Set comprehensive installation status
   set_fact:
-    otelcol_install_required: "{{ not otelcol_binary.stat.exists or otelcol_force_install | bool }}"
+    otelcol_install_required: >-
+      {{ not otelcol_binary.stat.exists or 
+         otelcol_force_install | bool or
+         (otelcol_binary.stat.exists and (
+           not otelcol_service_file.stat.exists | default(true) or
+           'otelcol-contrib.service' not in ansible_facts.services | default({}) or
+           ansible_facts.services['otelcol-contrib.service'].state != 'running'
+         ))
+      }}
+
+- name: Display installation decision
+  debug:
+    msg: "OpenTelemetry Collector installation is {{ 'required' if otelcol_install_required else 'not required' }} on {{ inventory_hostname }}"
 
 - name: Stop and remove existing service when forcing reinstallation
   block:
@@ -104,7 +126,7 @@
 - name: Create otelcol-contrib configuration
   become: true
   template:
-    src: otelcol-contrib.yaml.j2
+    src: "{{ playbook_dir }}/../templates/otelcol-contrib.yml.j2"
     dest: "{{ otelcol_config_path }}"
     mode: 0644
     owner: otelcol-contrib
@@ -114,7 +136,7 @@
 - name: Create systemd service file
   become: true
   template:
-    src: otelcol-contrib.service.j2
+    src: "{{ playbook_dir }}/../templates/otelcol-contrib.service.j2"
     dest: "/etc/systemd/system/otelcol-contrib.service"
     mode: 0644
     owner: root

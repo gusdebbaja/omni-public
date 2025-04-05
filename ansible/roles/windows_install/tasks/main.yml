@@ -65,14 +65,17 @@
     - otelcol_install_required
     - service_account is changed
 
-- name: Create otelcol-contrib directories
+- name: Create otelcol-contrib directories (Windows) with proper permissions
   win_file:
     path: "{{ item }}"
     state: directory
   with_items:
     - "{{ otelcol_config_dir }}"
     - "{{ otelcol_log_dir }}"
-  when: otelcol_install_required
+  become: yes
+  become_method: runas
+  become_user: SYSTEM # this is needed to create the directories 
+  when: ansible_os_family == 'Windows' and otelcol_install_required
 
 - name: Download otelcol-contrib package
   win_get_url:
@@ -107,14 +110,19 @@
     - "{{ otelcol_log_dir }}"
   when: otelcol_install_required
 
-- name: Install otelcol-contrib as a service with specific account
+- name: Install otelcol-contrib as a service with specific account (Windows)
   win_shell: |
-    & "{{ otelcol_binary_path }}" --config="{{ otelcol_config_path }}" --service install --service.username=".\otelcol-contrib" --service.password="{{ otelcol_service_password }}"
+    # Read password from secure environment variable
+    $secure_pwd = ConvertTo-SecureString $env:SERVICE_PASSWORD -AsPlainText -Force
+    $credential = New-Object System.Management.Automation.PSCredential(".\otelcol-contrib", $secure_pwd)
+    Start-Process -FilePath "{{ otelcol_binary_path }}" -ArgumentList "--config={{ otelcol_config_path }}", "--service", "install" -Credential $credential -Wait -NoNewWindow
+  environment:
+    SERVICE_PASSWORD: "{{ otelcol_service_password }}"  # This sets the environment variable
   args:
     creates: "{{ otelcol_service_name }}"
   when: otelcol_install_required
-  no_log: true  # Hide the output which might contain the password
-
+  no_log: true
+  
 - name: Start otelcol-contrib service
   win_service:
     name: otelcol-contrib

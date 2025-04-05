@@ -3,9 +3,9 @@
 - name: Set OS-specific variables
   include_vars: "{{ item }}"
   with_first_found:
-      - "../inventory/group_vars/{{ 'linux' if ansible_os_family in ['RedHat', 'Debian'] else ansible_os_family | lower }}/all.yml"
-      - "../inventory/group_vars/all.yml"
-
+    - "../inventory/group_vars/{{ ansible_os_family | lower }}/all.yml"
+    - "../inventory/group_vars/linux/all.yml"  # Fallback for RedHat/Debian
+    - "../inventory/group_vars/all/all.yml"
   tags: always
 
 - name: Create otelcol-contrib directories
