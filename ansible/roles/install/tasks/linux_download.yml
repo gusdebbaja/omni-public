@@ -1,0 +1,20 @@
+---
+# Download and extract OpenTelemetry Collector packages for Linux
+- name: Download otelcol-contrib package
+  get_url:
+    url: "{{ otelcol_download_url }}"
+    dest: "/tmp/otelcol-contrib-{{ otelcol_contrib_version }}.tar.gz"
+    mode: 644
+    timeout: 60
+    validate_certs: yes
+  register: download_result
+  retries: 3
+  delay: 5
+  until: download_result is succeeded
+
+- name: Extract otelcol-contrib package
+  become: true
+  unarchive:
+    src: "/tmp/otelcol-contrib-{{ otelcol_contrib_version }}.tar.gz"
+    dest: "/tmp"
+    remote_src: yes

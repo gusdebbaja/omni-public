@@ -1,0 +1,61 @@
+---
+# Upgrade OpenTelemetry Collector on Windows
+- name: Get current version
+  win_shell: |
+    & "{{ otelcol_binary_path }}" --version
+  register: current_version_win
+  changed_when: false
+
+- name: Display current version
+  debug:
+    msg: "Current version: {{ current_version_win.stdout }}"
+
+- name: Stop otelcol-contrib service
+  win_service:
+    name: otelcol-contrib
+    state: stopped
+
+- name: Download new otelcol-contrib package
+  win_get_url:
+    url: "{{ otelcol_download_url }}"
+    dest: "C:\\Temp\\otelcol-contrib-{{ otelcol_contrib_version }}.zip"
+  register: download_result
+  retries: 3
+  delay: 5
+  until: download_result is succeeded
+
+- name: Uninstall otelcol-contrib service
+  win_shell: |
+    & "{{ otelcol_binary_path }}" --config="{{ otelcol_config_path }}" --service uninstall
+  ignore_errors: yes
+
+- name: Extract new otelcol-contrib package
+  win_unzip:
+    src: "C:\\Temp\\otelcol-contrib-{{ otelcol_contrib_version }}.zip"
+    dest: "{{ otelcol_install_dir }}"
+    delete_archive: yes
+
+- name: Install otelcol-contrib as a service with specific account
+  win_shell: |
+    # Read password from secure environment variable
+    $secure_pwd = ConvertTo-SecureString $env:SERVICE_PASSWORD -AsPlainText -Force
+    $credential = New-Object System.Management.Automation.PSCredential(".\otelcol-contrib", $secure_pwd)
+    Start-Process -FilePath "{{ otelcol_binary_path }}" -ArgumentList "--config={{ otelcol_config_path }}", "--service", "install" -Credential $credential -Wait -NoNewWindow
+  environment:
+    SERVICE_PASSWORD: "{{ otelcol_service_password }}"
+  no_log: true
+
+- name: Start otelcol-contrib service
+  win_service:
+    name: otelcol-contrib
+    state: started
+
+- name: Get new version
+  win_shell: |
+    & "{{ otelcol_binary_path }}" --version
+  register: new_version_win
+  changed_when: false
+
+- name: Display upgrade results
+  debug:
+    msg: "Upgraded from {{ current_version_win.stdout }} to {{ new_version_win.stdout }}"

@@ -1,0 +1,33 @@
+---
+# Prepare for Windows installation
+- name: Create otelcol-contrib service account
+  win_user:
+    name: "otelcol-contrib"
+    password: "{{ otelcol_service_password }}" # This should come from Ansible Vault
+    password_never_expires: yes
+    description: "OpenTelemetry Collector service account"
+    user_cannot_change_password: yes
+    account_disabled: no
+    state: present
+  register: service_account
+
+- name: Grant service account 'Log on as a service' right
+  win_shell: |
+    $tempPath = [System.IO.Path]::GetTempFileName()
+    secedit /export /cfg $tempPath
+    $content = Get-Content -Path $tempPath
+    $logonAsServiceSetting = ($content | Select-String -Pattern "SeServiceLogonRight").ToString()
+
+    if ($logonAsServiceSetting) {
+      # Append to existing accounts
+      $updatedSetting = $logonAsServiceSetting -replace "SeServiceLogonRight = ", "SeServiceLogonRight = otelcol-contrib,"
+      $content = $content -replace [regex]::Escape($logonAsServiceSetting), $updatedSetting
+    } else {
+      # Create new setting
+      $content += "SeServiceLogonRight = otelcol-contrib"
+    }
+
+    $content | Out-File $tempPath
+    secedit /configure /db c:\windows\security\local.sdb /cfg $tempPath /areas USER_RIGHTS
+    Remove-Item -Path $tempPath
+  when: service_account is changed

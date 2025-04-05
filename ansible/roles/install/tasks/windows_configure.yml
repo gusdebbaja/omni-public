@@ -1,0 +1,14 @@
+---
+# Configure OpenTelemetry Collector on Windows
+- name: Create otelcol-contrib configuration
+  win_template:
+    src: "{{ role_path }}/../../templates/otelcol-contrib.yaml.j2"
+    dest: "{{ otelcol_config_path }}"
+  notify: restart otelcol-contrib windows
+
+- name: Start otelcol-contrib service
+  win_service:
+    name: otelcol-contrib
+    state: started
+    start_mode: auto
+  when: otelcol_install_required | default(false)

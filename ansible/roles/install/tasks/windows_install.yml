@@ -1,0 +1,26 @@
+---
+# Install OpenTelemetry Collector as a Windows service
+- name: Set directory permissions for service account
+  win_acl:
+    path: "{{ item }}"
+    user: otelcol-contrib
+    rights: ReadAndExecute
+    type: allow
+    state: present
+    inherit: yes
+  with_items:
+  - "{{ otelcol_install_dir }}"
+  - "{{ otelcol_config_dir }}"
+  - "{{ otelcol_log_dir }}"
+
+- name: Install otelcol-contrib as a service with specific account
+  win_shell: |
+    # Read password from secure environment variable
+    $secure_pwd = ConvertTo-SecureString $env:SERVICE_PASSWORD -AsPlainText -Force
+    $credential = New-Object System.Management.Automation.PSCredential(".\otelcol-contrib", $secure_pwd)
+    Start-Process -FilePath "{{ otelcol_binary_path }}" -ArgumentList "--config={{ otelcol_config_path }}", "--service", "install" -Credential $credential -Wait -NoNewWindow
+  environment:
+    SERVICE_PASSWORD: "{{ otelcol_service_password }}"
+  args:
+    creates: "{{ otelcol_service_name }}"
+  no_log: true # This prevents the task output from being displayed

@@ -1,5 +1,9 @@
-otelcol_force_install: false
+# Global variables applicable to all hosts
 otelcol_contrib_version: 0.121.0
-
-sent_to:
-  - splunk_enterprise: [] # send all data to Splunk
+otelcol_force_install: false
+debug: false
+monitor_vm_infra_metrics: []
+sent_to: []
+otel_memory_limit_mib: 500
+otel_memory_spike_limit_mib: 100
+otel_hostmetrics_interval: "60s"

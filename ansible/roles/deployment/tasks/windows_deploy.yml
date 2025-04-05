@@ -1,0 +1,18 @@
+---
+# Deploy OpenTelemetry Collector configuration to Windows
+- name: Deploy otelcol-contrib configuration
+  win_template:
+    src: "{{ role_path }}/../../templates/otelcol-contrib.yaml.j2"
+    dest: "{{ otelcol_config_path }}"
+  notify: restart otelcol-contrib windows
+
+- name: Validate otelcol-contrib configuration
+  win_shell: |
+    & "{{ otelcol_binary_path }}" --config="{{ otelcol_config_path }}" --dry-run
+  register: config_validation_win
+  changed_when: false
+
+- name: Display validation results
+  debug:
+    msg: "Configuration validation successful"
+  when: config_validation_win.rc == 0

@@ -1,57 +1,22 @@
 ---
-# Tasks for deploying OpenTelemetry Collector configuration
-- name: Check if otelcol-contrib is installed (Linux)
-  stat:
-    path: "{{ otelcol_binary_path }}"
-  register: otelcol_binary
+# Main tasks for deploying OpenTelemetry Collector configuration
+- name: Check if OpenTelemetry Collector is installed on Linux
+  include_tasks: linux_check.yml
   when: ansible_os_family in ['RedHat', 'Debian']
 
-- name: Check if otelcol-contrib is installed (Windows)
-  win_stat:
-    path: "{{ otelcol_binary_path }}"
-  register: otelcol_binary_win
+- name: Check if OpenTelemetry Collector is installed on Windows
+  include_tasks: windows_check.yml
   when: ansible_os_family == 'Windows'
 
-- name: Set fact for installation status
-  set_fact:
-    otelcol_installed: "{{ (ansible_os_family in ['RedHat', 'Debian'] and otelcol_binary.stat.exists) or (ansible_os_family == 'Windows' and otelcol_binary_win.stat.exists) }}"
-
-- name: Fail if otelcol-contrib is not installed
+- name: Fail if OpenTelemetry Collector is not installed
   fail:
     msg: "OpenTelemetry Collector is not installed on {{ inventory_hostname }}. Please run the install_playbook first."
-  when: not otelcol_installed
+  when: not otelcol_installed | default(false)
 
-- name: Deploy otelcol-contrib configuration (Linux)
-  template:
-    src: "{{ role_path }}/../{{ 'linux' if ansible_os_family in ['RedHat', 'Debian'] else 'windows' }}_install/templates/otelcol-contrib.yaml.j2"
-    dest: "{{ otelcol_config_path }}"
-    mode: 0644
-  notify: restart otelcol-contrib
+- name: Deploy OpenTelemetry Collector configuration on Linux
+  include_tasks: linux_deploy.yml
   when: ansible_os_family in ['RedHat', 'Debian']
 
-- name: Deploy otelcol-contrib configuration (Windows)
-  win_template:
-    src: "{{ role_path }}/../windows_install/templates/otelcol-contrib.yaml.j2"
-    dest: "{{ otelcol_config_path }}"
-  notify: restart otelcol-contrib windows
+- name: Deploy OpenTelemetry Collector configuration on Windows
+  include_tasks: windows_deploy.yml
   when: ansible_os_family == 'Windows'
-
-- name: Validate otelcol-contrib configuration (Linux)
-  command: "{{ otelcol_binary_path }} --config={{ otelcol_config_path }} --dry-run"
-  register: config_validation
-  changed_when: false
-  when: ansible_os_family in ['RedHat', 'Debian']
-
-- name: Validate otelcol-contrib configuration (Windows)
-  win_shell: |
-    & "{{ otelcol_binary_path }}" --config="{{ otelcol_config_path }}" --dry-run
-  register: config_validation_win
-  changed_when: false
-  when: ansible_os_family == 'Windows'
-
-- name: Display validation results
-  debug:
-    msg: "Configuration validation successful"
-  when: 
-    - (ansible_os_family in ['RedHat', 'Debian'] and config_validation.rc == 0) or 
-      (ansible_os_family == 'Windows' and config_validation_win.rc == 0)

@@ -1,0 +1,24 @@
+---
+# Uninstall OpenTelemetry Collector from Windows
+- name: Uninstall otelcol-contrib service
+  win_shell: |
+    & "{{ otelcol_binary_path }}" --config="{{ otelcol_config_path }}" --service uninstall
+  args:
+    removes: "{{ otelcol_service_name }}"
+  ignore_errors: yes
+
+- name: Remove otelcol-contrib installation directory
+  win_file:
+    path: "{{ otelcol_install_dir }}"
+    state: absent
+
+- name: Remove otelcol-contrib configuration directory (if different from install dir)
+  win_file:
+    path: "{{ otelcol_config_dir }}"
+    state: absent
+  when: otelcol_config_dir != otelcol_install_dir
+
+- name: Remove otelcol-contrib log directory
+  win_file:
+    path: "{{ otelcol_log_dir }}"
+    state: absent

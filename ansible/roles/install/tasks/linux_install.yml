@@ -1,0 +1,42 @@
+---
+# Install OpenTelemetry Collector binaries and service on Linux
+- name: Install otelcol-contrib binary
+  become: true
+  copy:
+    src: "/tmp/otelcol-contrib"
+    dest: "{{ otelcol_binary_path }}"
+    mode: 755
+    owner: root
+    group: root
+    remote_src: yes
+
+- name: Create systemd service file
+  become: true
+  template:
+    src: "{{ role_path }}/../../templates/otelcol-contrib.service.j2"
+    dest: "/etc/systemd/system/otelcol-contrib.service"
+    mode: 644
+    owner: root
+    group: root
+  notify: restart otelcol-contrib
+
+- name: Configure SELinux context for otelcol-contrib (RedHat)
+  become: true
+  block:
+  - name: Check if SELinux is enabled
+    command: getenforce
+    register: selinux_status
+    changed_when: false
+    failed_when: false
+
+  - name: Set SELinux context for otelcol binary
+    sefcontext:
+      target: "{{ otelcol_binary_path }}"
+      setype: bin_t
+      state: present
+    when: selinux_status.stdout is defined and selinux_status.stdout != "Disabled"
+
+  - name: Apply SELinux context
+    command: restorecon -v "{{ otelcol_binary_path }}"
+    when: selinux_status.stdout is defined and selinux_status.stdout != "Disabled"
+  when: ansible_os_family == 'RedHat'

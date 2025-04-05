@@ -1,0 +1,28 @@
+---
+# Check if OpenTelemetry Collector is already installed on Linux
+- name: Check if otelcol-contrib is installed
+  stat:
+    path: "{{ otelcol_binary_path }}"
+  register: otelcol_binary
+
+- name: Set installation required flag
+  set_fact:
+    otelcol_install_required: "{{ not otelcol_binary.stat.exists or otelcol_force_install | bool }}"
+
+- name: Stop and remove existing service when forcing reinstallation
+  block:
+  - name: Stop otelcol-contrib service
+    become: true
+    systemd:
+      name: otelcol-contrib
+      state: stopped
+    failed_when: false
+
+  - name: Remove otelcol-contrib binary
+    become: true
+    file:
+      path: "{{ otelcol_binary_path }}"
+      state: absent
+  when:
+  - otelcol_binary.stat.exists
+  - otelcol_force_install | bool

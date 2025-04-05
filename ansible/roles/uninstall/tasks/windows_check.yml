@@ -1,0 +1,10 @@
+---
+# Check if OpenTelemetry Collector is installed on Windows
+- name: Check if otelcol-contrib is installed (Windows)
+  win_stat:
+    path: "{{ otelcol_binary_path }}"
+  register: otelcol_binary_win
+
+- name: Set fact for installation status
+  set_fact:
+    otelcol_installed: "{{ otelcol_binary_win.stat.exists }}"

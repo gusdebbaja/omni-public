@@ -1,0 +1,15 @@
+---
+# Linux-specific directory creation tasks
+- name: Create otelcol-contrib directories (Linux)
+  become: true
+  become_method: sudo
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 755
+    owner: "{{ (otelcol_user | default('otelcol-contrib')) if otelcol_install_required | default(false) else omit }}"
+    group: "{{ (otelcol_user | default('otelcol-contrib')) if otelcol_install_required | default(false) else omit }}"
+  with_items:
+  - "{{ otelcol_config_dir }}"
+  - "{{ otelcol_log_dir }}"
+  - "{{ otelcol_data_dir | default('/var/lib/otelcol-contrib') }}"
