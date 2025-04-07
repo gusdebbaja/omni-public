@@ -17,6 +17,16 @@
 
 {% set os_type = 'windows' if ansible_os_family == "Windows" else 'linux' %}
 
+exporters:
+  # Splunk HEC exporter for traces
+  splunk_hec/traces:
+    endpoint: {{ splunk_hec_url }}
+    token: {{ splunk_token }}
+    source: {{ ansible_hostname }}_{{ os_type }}
+    sourcetype: {{ splunk_config.traces_sourcetype | default('otel') }}
+    index: {{ splunk_config.traces_index | default(os_type) }}
+    tls:
+      insecure: {{ splunk_insecure }}
 # Splunk HEC exporter for metrics
 splunk_hec/metrics:
   endpoint: {{ splunk_hec_url }}
