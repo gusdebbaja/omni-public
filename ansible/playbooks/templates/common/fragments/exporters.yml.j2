@@ -1,0 +1,56 @@
+exporters:
+  {% if debug | default(false) or sent_to | selectattr('grafana_cloud', 'defined') | list | length > 0 %}
+  otlp:
+    endpoint: {{ otel_exporter_otlp_endpoint | default('localhost:4317') }}
+    tls:
+      insecure: {{ otel_exporter_otlp_insecure | default(true) }}
+  {% endif %}
+  
+  {% if debug | default(false) or sent_to | selectattr('prometheus', 'defined') | list | length > 0 %}
+  prometheus:
+    endpoint: {{ otel_exporter_prometheus_endpoint | default('0.0.0.0:8889') }}
+    namespace: otelcol
+    const_labels:
+      host.name: {{ ansible_hostname }}
+      os.type: {{ 'windows' if ansible_os_family == 'Windows' else 'linux' }}
+  {% endif %}
+  
+  {% if debug | default(false) or sent_to | selectattr('splunk_enterprise', 'defined') | list | length > 0 %}
+  # Splunk HEC exporters
+  {% set splunk_config = {} %}
+  {% for item in sent_to | default([]) %}
+    {% if item is mapping and 'splunk_enterprise' in item %}
+      {% for config in item.splunk_enterprise %}
+        {% if config is mapping %}
+          {% for key, value in config.items() %}
+            {% set _ = splunk_config.update({key: value}) %}
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+
+  {% set splunk_hec_url = splunk_config.splunk_hec_url | default(splunk_hec_endpoint | default('https://localhost:8088/services/collector')) %}
+  {% set splunk_token = splunk_config.token | default(splunk_hec_token | default('00000000-0000-0000-0000-000000000000')) %}
+  {% set splunk_insecure = splunk_config.insecure | default(splunk_hec_insecure | default(false)) %}
+
+  {% set os_type = 'windows' if ansible_os_family == "Windows" else 'linux' %}
+
+  splunk_hec/metrics:
+    endpoint: {{ splunk_hec_url }}
+    token: {{ splunk_token }}
+    source: {{ ansible_hostname }}_{{ os_type }}
+    sourcetype: {{ os_type }}:vm:perf:json
+    index: {{ splunk_config.metrics_index | default(splunk_config.index | default('infra_metrics')) }}
+    tls:
+      insecure: {{ splunk_insecure }}
+
+  splunk_hec/logs:
+    endpoint: {{ splunk_hec_url }}
+    token: {{ splunk_token }}
+    source: {{ ansible_hostname }}_{{ os_type }}
+    sourcetype: {{ splunk_config.logs_sourcetype | default('otel') }}
+    index: {{ splunk_config.logs_index | default(os_type) }}
+    tls:
+      insecure: {{ splunk_insecure }}
+  {% endif %}

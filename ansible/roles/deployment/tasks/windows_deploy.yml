@@ -1,11 +1,51 @@
+# ansible/roles/deployment/tasks/windows_deploy.yml
 ---
 # Deploy OpenTelemetry Collector configuration to Windows
 - name: Deploy otelcol-contrib configuration
   win_template:
-    src: "{{ playbook_dir }}/templates/otelcol-contrib.yaml.j2"
+    src: "windows/otelcol-contrib.yaml.j2"
     dest: "{{ otelcol_config_path }}"
   notify: restart otelcol-contrib windows
 
+# Add this task to check the service configuration
+- name: Check Windows service configuration
+  win_shell: |
+    Get-WmiObject win32_service -filter "name='otelcol-contrib'" | Select-Object PathName
+  register: service_path
+  changed_when: false
+
+- name: Display service path
+  debug:
+    var: service_path.stdout_lines
+
+# Modify the service to use the specified config file if needed
+- name: Update service startup parameters
+  win_shell: |
+    $serviceName = "otelcol-contrib"
+    $service = Get-WmiObject -Class Win32_Service -Filter "Name='$serviceName'"
+    
+    # Get the current path
+    $currentPath = $service.PathName
+    
+    # Extract the executable path
+    $exePath = ($currentPath -split ' --')[0] -replace '"',''
+    
+    # Construct the new path with the correct config
+    $newPath = "`"$exePath`" --config=`"{{ otelcol_config_path }}`""
+    
+    # Update the service
+    $result = $service.Change($null,$newPath,$null,$null,$null,$null,$null,$null,$null,$null,$null)
+    
+    if($result.ReturnValue -eq 0) {
+        Write-Output "Service updated successfully"
+        Restart-Service $serviceName
+    } else {
+        Write-Error "Failed to update service. Return code: $($result.ReturnValue)"
+        exit 1
+    }
+  when: "otelcol_config_path not in (service_config.stdout | default(''))"
+  notify: restart otelcol-contrib windows
+  
 - name: Validate otelcol-contrib configuration
   win_shell: |
     & "{{ otelcol_binary_path }}" validate --config="{{ otelcol_config_path }}"

@@ -1,3 +1,4 @@
+# ansible/roles/deployment/tasks/linux_deploy.yml
 ---
 # Deploy OpenTelemetry Collector configuration to Linux
 - name: Create otelcol-contrib configuration directory
@@ -11,11 +12,26 @@
 
 - name: Deploy otelcol-contrib configuration
   template:
-    src: "otelcol-contrib.yaml.j2"
+    src: "linux/otelcol-contrib.yaml.j2"
     dest: /etc/otelcol-contrib/otelcol-contrib.yaml
     mode: 0644
   become: true
   notify: restart otelcol-contrib
+
+- name: Deploy systemd service file
+  template:
+    src: "linux/otelcol-contrib.service.j2"
+    dest: "/etc/systemd/system/otelcol-contrib.service"
+    mode: 0644
+    owner: root
+    group: root
+  become: true
+  notify: restart otelcol-contrib
+
+- name: Systemd daemon-reload
+  systemd:
+    daemon_reload: yes
+  become: true
 
 - name: Validate otelcol-contrib configuration
   command: "{{ otelcol_binary_path }} validate --config={{ otelcol_config_path }}"

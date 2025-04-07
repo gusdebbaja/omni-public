@@ -1,3 +1,4 @@
+# common/fragments/disk_mounts.yml.j2
 {% set disk_mounts = [] %}
 {% for item in monitor_vm_infra_metrics | default([]) %}
   {% if item is mapping and 'disk' in item %}
