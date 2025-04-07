@@ -1,9 +1,13 @@
 ---
-# Download and extract OpenTelemetry Collector packages for Linux
+# Download OpenTelemetry Collector packages for Linux
+- name: Set package type based on OS family
+  set_fact:
+    pkg_ext: "{{ 'rpm' if ansible_os_family == 'RedHat' else 'deb' }}"
+
 - name: Download otelcol-contrib package
   get_url:
-    url: "{{ otelcol_download_url }}"
-    dest: "/tmp/otelcol-contrib-{{ otelcol_contrib_version }}.tar.gz"
+    url: "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v{{ otelcol_contrib_version }}/otelcol-contrib_{{ otelcol_contrib_version }}_{{ ansible_architecture }}.{{ pkg_ext }}"
+    dest: "/tmp/otelcol-contrib-{{ otelcol_contrib_version }}.{{ pkg_ext }}"
     mode: 644
     timeout: 60
     validate_certs: yes
@@ -11,10 +15,3 @@
   retries: 3
   delay: 5
   until: download_result is succeeded
-
-- name: Extract otelcol-contrib package
-  become: true
-  unarchive:
-    src: "/tmp/otelcol-contrib-{{ otelcol_contrib_version }}.tar.gz"
-    dest: "/tmp"
-    remote_src: yes

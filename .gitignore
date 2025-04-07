@@ -23,6 +23,19 @@ vault.yml
 **/vault/
 ansible-vault-password
 *.vault
+.ansible/
+
+# Certificate files
+**/ansible_certs/
+*.pem
+*.key
+*.csr
+*.cer
+*.pfx
+*.p12
+*.crt
+
+
 
 # Node.js
 node_modules/

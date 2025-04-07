@@ -1,18 +1,22 @@
 # Windows-specific variables
+ansible_python_interpreter: auto
+
 ansible_connection: psrp
-ansible_psrp_transport: ntlm
+ansible_psrp_certificate_key_pem: ansible_certs/ansible_client_combined.pem
 ansible_psrp_protocol: https
 ansible_psrp_port: 5986
 ansible_psrp_cert_validation: ignore
+ansible_psrp_transport: certificate
 ansible_user: ansible
 ansible_password: "{{ windows_ansible_password }}"
-ansible_python_interpreter: auto
-otelcol_install_dir: "C:\\Program Files\\OpenTelemetry Collector"
-otelcol_binary_path: "C:\\Program Files\\OpenTelemetry Collector\\otelcol-contrib.exe"
-otelcol_config_dir: "C:\\Program Files\\OpenTelemetry Collector"
-otelcol_config_path: "C:\\Program Files\\OpenTelemetry Collector\\otelcol-contrib.yaml"
-otelcol_log_dir: "C:\\Log\\OpenTelemetry"
+ansible_become_method: runas
+ansible_become_user: Administrator
+
+otelcol_install_dir: "C:\\OpenTelemetry Collector"
+otelcol_binary_path: "C:\\OpenTelemetry Collector\\otelcol-contrib.exe"
+otelcol_config_dir: "C:\\OpenTelemetry Collector"
+otelcol_config_path: "C:\\OpenTelemetry Collector\\otelcol-contrib.yaml"
+otelcol_log_dir: "C:\\OpenTelemetry Collector\\Log"
 otelcol_contrib_version: "0.121.0"
-otelcol_download_url: "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v{{ otelcol_contrib_version }}/otelcol-contrib_{{ otelcol_contrib_version }}_windows_amd64.zip"
+otelcol_download_url: https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v{{ otelcol_contrib_version }}/otelcol-contrib_{{ otelcol_contrib_version }}_windows_x64.msi
 otelcol_service_name: "otelcol-contrib"
-otelcol_service_password: "{{ vault_otelcol_service_password }}"

@@ -12,3 +12,4 @@
 - name: Create required directories for Windows
   include_tasks: windows_directories.yml
   when: ansible_os_family == 'Windows'
+  

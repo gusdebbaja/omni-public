@@ -1,24 +1,23 @@
 ---
 # Install OpenTelemetry Collector binaries and service on Linux
-- name: Install otelcol-contrib binary
-  become: true
-  copy:
-    src: "/tmp/otelcol-contrib"
-    dest: "{{ otelcol_binary_path }}"
-    mode: 755
-    owner: root
-    group: root
-    remote_src: yes
+- name: Set package type based on OS family
+  set_fact:
+    pkg_ext: "{{ 'rpm' if ansible_os_family == 'RedHat' else 'deb' }}"
 
-- name: Create systemd service file
+- name: Install otelcol-contrib package (RPM)
   become: true
-  template:
-    src: "{{ role_path }}/../../templates/otelcol-contrib.service.j2"
-    dest: "/etc/systemd/system/otelcol-contrib.service"
-    mode: 644
-    owner: root
-    group: root
-  notify: restart otelcol-contrib
+  yum:
+    name: "/tmp/otelcol-contrib-{{ otelcol_contrib_version }}.rpm"
+    state: present
+    disable_gpg_check: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Install otelcol-contrib package (DEB)
+  become: true
+  apt:
+    deb: "/tmp/otelcol-contrib-{{ otelcol_contrib_version }}.deb"
+    state: present
+  when: ansible_os_family == 'Debian'
 
 - name: Configure SELinux context for otelcol-contrib (RedHat)
   become: true

@@ -1,5 +1,7 @@
 # Global variables applicable to all hosts
 otelcol_contrib_version: 0.121.0
+otelcol_service_password: "{{ otelcol_service_password }}"
+
 otelcol_force_install: false
 debug: false
 monitor_vm_infra_metrics: []

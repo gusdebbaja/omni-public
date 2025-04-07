@@ -1,0 +1,111 @@
+---
+- name: Setup Certificate Authentication for Windows
+  hosts: windows
+  gather_facts: false
+  
+  tasks:
+    - name: Ensure certificates directory exists locally
+      delegate_to: localhost
+      file:
+        path: ansible_certs
+        state: directory
+        mode: '0700'
+      run_once: true
+      
+    # Generate CA on controller (Ubuntu)
+    - name: Generate CA private key
+      delegate_to: localhost
+      shell: |
+        openssl genrsa -out ansible_certs/ansibleCA.key 4096
+      args:
+        creates: ansible_certs/ansibleCA.key
+      run_once: true
+      
+    - name: Generate CA certificate
+      delegate_to: localhost
+      shell: |
+        openssl req -x509 -new -nodes -key ansible_certs/ansibleCA.key -sha256 -days 1825 -out ansible_certs/ansibleCA.pem -subj "/CN=AnsibleCA"
+      args:
+        creates: ansible_certs/ansibleCA.pem
+      run_once: true
+      
+    # Generate client certificate
+    - name: Generate client key
+      delegate_to: localhost
+      shell: |
+        openssl genrsa -out ansible_certs/ansible_client.key 4096
+      args:
+        creates: ansible_certs/ansible_client.key
+      run_once: true
+      
+    - name: Generate client CSR
+      delegate_to: localhost
+      shell: |
+        openssl req -new -key ansible_certs/ansible_client.key -out ansible_certs/ansible_client.csr -subj "/CN=AnsibleClient"
+      args:
+        creates: ansible_certs/ansible_client.csr
+      run_once: true
+      
+    - name: Sign client certificate with CA
+      delegate_to: localhost
+      shell: |
+        openssl x509 -req -in ansible_certs/ansible_client.csr -CA ansible_certs/ansibleCA.pem -CAkey ansible_certs/ansibleCA.key -CAcreateserial -out ansible_certs/ansible_client.pem -days 1825 -sha256
+      args:
+        creates: ansible_certs/ansible_client.pem
+      run_once: true
+      
+    - name: Create combined PEM file
+      delegate_to: localhost
+      shell: |
+        cat ansible_certs/ansible_client.pem ansible_certs/ansible_client.key > ansible_certs/ansible_client_combined.pem
+        chmod 600 ansible_certs/ansible_client_combined.pem
+      args:
+        creates: ansible_certs/ansible_client_combined.pem
+      run_once: true
+      
+    # Windows machine setup - using existing NTLM authentication
+    - name: Ensure temp directory exists on Windows hosts
+      win_file:
+        path: C:\Temp
+        state: directory
+    
+    - name: Copy CA certificate to Windows hosts
+      win_copy:
+        src: ansible_certs/ansibleCA.pem
+        dest: C:\Temp\ansibleCA.pem
+    
+    - name: Import CA certificate to trusted root store
+      win_shell: |
+        $certFile = "C:\Temp\ansibleCA.pem"
+        # Create a PowerShell script with the import command
+        $importScript = @"
+        Import-Certificate -FilePath '$certFile' -CertStoreLocation Cert:\LocalMachine\Root
+        "@
+        
+        # Save the script to a file
+        Set-Content -Path "C:\Temp\ImportCert.ps1" -Value $importScript
+        
+        # Run the script with elevated privileges
+        Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -File C:\Temp\ImportCert.ps1" -Verb RunAs -Wait
+      args:
+        executable: powershell.exe
+    
+    - name: Create server certificate
+      win_shell: |
+        $serverCert = New-SelfSignedCertificate -CertStoreLocation "Cert:\LocalMachine\My" -DnsName $env:COMPUTERNAME -FriendlyName "WinRM HTTPS Certificate" -KeyUsage KeyEncipherment,DigitalSignature -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.1")
+        $thumbprint = $serverCert.Thumbprint
+        Write-Output $thumbprint
+      register: cert_result
+    
+    - name: Configure WinRM HTTPS listener
+      win_shell: |
+        $thumbprint = "{{ cert_result.stdout_lines[-1] }}"
+        winrm create winrm/config/Listener?Address=*+Transport=HTTPS "@{Hostname=`"$env:COMPUTERNAME`";CertificateThumbprint=`"$thumbprint`"}"
+    
+    - name: Enable certificate authentication
+      win_shell: |
+        winrm set winrm/config/service/auth '@{Certificate="true"}'
+    
+    - name: Verify PowerShell remoting is enabled
+      win_shell: |
+        Enable-PSRemoting -Force -SkipNetworkProfileCheck
