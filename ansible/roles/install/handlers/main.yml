@@ -1,7 +1,7 @@
 ---
-# Common handlers
+# Handlers for install role
 - name: restart otelcol-contrib
-  service:
+  systemd:
     name: otelcol-contrib
     state: restarted
     daemon_reload: yes

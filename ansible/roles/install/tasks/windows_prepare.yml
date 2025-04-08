@@ -1,0 +1,29 @@
+---
+# Tasks for installing OpenTelemetry Collector on Windows
+
+# First check if the service account already exists
+- name: Check if otelcol-contrib service account exists
+  win_user:
+    name: "otelcol-contrib"
+    state: query
+  register: service_account_check
+  failed_when: false
+
+- name: Create otelcol-contrib service account
+  win_user:
+    name: "otelcol-contrib"
+    password: "{{ otelcol_service_password }}" # This should come from Ansible Vault
+    password_never_expires: yes
+    description: "OpenTelemetry Collector service account"
+    user_cannot_change_password: yes
+    account_disabled: no
+    state: present
+  register: service_account
+  when: service_account_check.state is not defined or service_account_check.state != "present"
+
+- name: Grant 'Log on as a service' right to otelcol-contrib
+  win_user_right:
+    name: "otelcol-contrib"
+    rights:
+    - SeServiceLogonRight
+  when: service_account_check.state is not defined or service_account_check.state != "present"

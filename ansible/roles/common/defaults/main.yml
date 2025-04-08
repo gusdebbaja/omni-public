@@ -1,0 +1,10 @@
+---
+# Default variables for the common role
+otelcol_contrib_version: "0.121.0"
+otelcol_force_install: false
+debug: false
+monitor_vm_infra_metrics: []
+sent_to: []
+otelcol_memory_limit_mib: 500
+otelcol_memory_spike_limit_mib: 100
+otelcol_hostmetrics_interval: "60s"

@@ -1,14 +1,14 @@
 ---
-# Common handlers
+# Handlers for deployment role
 - name: restart otelcol-contrib
   service:
     name: otelcol-contrib
     state: restarted
-    daemon_reload: yes
   when: ansible_os_family in ['RedHat', 'Debian']
 
-- name: restart otelcol-contrib windows
-  win_service:
+- name: Restart Otelcol-contrib Windows
+  ansible.windows.win_service:
     name: otelcol-contrib
     state: restarted
   when: ansible_os_family == 'Windows'
+  

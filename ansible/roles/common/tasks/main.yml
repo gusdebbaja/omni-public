@@ -1,30 +1,15 @@
 ---
 # Common tasks for all hosts
 - name: Set OS-specific variables
-  include_vars: "{{ item }}"
-  with_first_found:
-    - "../inventory/group_vars/{{ ansible_os_family | lower }}/all.yml"
-    - "../inventory/group_vars/linux/all.yml"  # Fallback for RedHat/Debian
-    - "../inventory/group_vars/all/all.yml"
+  include_tasks: set_variables.yml
   tags: always
 
-- name: Create otelcol-contrib directories
-  become: true
-  become_method: sudo
-  file:
-    path: "{{ item }}"
-    state: directory
-    mode: 0755
-  with_items:
-    - "{{ otelcol_config_dir }}"
-    - "{{ otelcol_log_dir }}"
+# Use includes to handle OS-specific tasks with a simpler approach
+- name: Create required directories for Linux
+  include_tasks: linux_directories.yml
   when: ansible_os_family in ['RedHat', 'Debian']
 
-- name: Create otelcol-contrib directories (Windows)
-  win_file:
-    path: "{{ item }}"
-    state: directory
-  with_items:
-    - "{{ otelcol_config_dir }}"
-    - "{{ otelcol_log_dir }}"
+- name: Create required directories for Windows
+  include_tasks: windows_directories.yml
   when: ansible_os_family == 'Windows'
+  

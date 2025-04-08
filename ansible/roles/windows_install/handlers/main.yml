@@ -1,5 +1,0 @@
----
-- name: restart otelcol-contrib windows
-  win_service:
-    name: otelcol-contrib
-    state: restarted

@@ -1,0 +1,41 @@
+---
+# Install OpenTelemetry Collector binaries and service on Linux
+- name: Set package type based on OS family
+  set_fact:
+    pkg_ext: "{{ 'rpm' if ansible_os_family == 'RedHat' else 'deb' }}"
+
+- name: Install otelcol-contrib package (RPM)
+  become: true
+  yum:
+    name: "/tmp/otelcol-contrib-{{ otelcol_contrib_version }}.rpm"
+    state: present
+    disable_gpg_check: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Install otelcol-contrib package (DEB)
+  become: true
+  apt:
+    deb: "/tmp/otelcol-contrib-{{ otelcol_contrib_version }}.deb"
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Configure SELinux context for otelcol-contrib (RedHat)
+  become: true
+  block:
+  - name: Check if SELinux is enabled
+    command: getenforce
+    register: selinux_status
+    changed_when: false
+    failed_when: false
+
+  - name: Set SELinux context for otelcol binary
+    sefcontext:
+      target: "{{ otelcol_binary_path }}"
+      setype: bin_t
+      state: present
+    when: selinux_status.stdout is defined and selinux_status.stdout != "Disabled"
+
+  - name: Apply SELinux context
+    command: restorecon -v "{{ otelcol_binary_path }}"
+    when: selinux_status.stdout is defined and selinux_status.stdout != "Disabled"
+  when: ansible_os_family == 'RedHat'

@@ -1,29 +1,30 @@
-monitor_vm_infra_metrics: #this should create the hostmeric receiver with the one below
-  - cpu
-  - memory: null
-  - disk:
-    - /
-    - /var
-    - /var/log
-  - process:
-    - name:
-      - ansible:
-        - enable_logging: true  # enables filelog receiver or journald receiver to get logs for this process
-        - add_labels: # create otel processor to add labels to metrics
-          - my_custom_label: my_custom_label_value
-      - remove_labels: # create otel processor to remote labels to metrics
-        - k8s.namespace_name
-        - k8s.pod_name
-        - k8s.container_name
-      - docker
-      - sshd
+# Sandbox environment specific variables - unchanged
+monitor_vm_infra_metrics:
+- cpu
+- memory: null
+- disk:
+  - /
+  - /var
+  - /var/log
+- process:
+  - name:
+    - ansible:
+      - enable_logging: true
+      - add_labels:
+        - my_custom_label: my_custom_label_value
+    - remove_labels:
+      - k8s.namespace_name
+      - k8s.pod_name
+      - k8s.container_name
+    - docker
+    - sshd
 
-debug: true # removes all filters and collect full data from all receivers
+debug: true
 
 sent_to:
-  - grafana_cloud:
-    - monitor_vm_infra_metrics
-  - splunk_enterprise: # send all data to Splunk
-  - prometheus:
-    - send_metrics_with_labels:
-      - k8s.namespace.name: monitoring
+- grafana_cloud:
+  - monitor_vm_infra_metrics
+- splunk_enterprise:
+- prometheus:
+  - send_metrics_with_labels:
+    - k8s.namespace.name: monitoring

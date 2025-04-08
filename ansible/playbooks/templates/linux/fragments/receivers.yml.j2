@@ -1,0 +1,85 @@
+# linux/fragments/receivers.yml.j2
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: {{ otel_receiver_otlp_grpc_endpoint | default('0.0.0.0:4317') }}
+      http:
+        endpoint: {{ otel_receiver_otlp_http_endpoint | default('0.0.0.0:4318') }}
+
+{% if monitor_vm_infra_metrics is defined or debug | default(false) %}
+  hostmetrics:
+    collection_interval: {{ otel_hostmetrics_interval | default('60s') }}
+    scrapers:
+      # CPU metrics
+      {% if debug | default(false) or 'cpu' in monitor_vm_infra_metrics %}
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      {% endif %}
+
+      # Memory metrics
+      {% if debug | default(false) or monitor_vm_infra_metrics | selectattr('memory', 'defined') | list | length > 0 %}
+      memory:
+      {% endif %}
+
+      # Disk metrics
+      {% if debug | default(false) or monitor_vm_infra_metrics | selectattr('disk', 'defined') | list | length > 0 %}
+      disk:
+        {% include 'common/fragments/disk_mounts.yml.j2' %}
+      {% endif %}
+
+      # Filesystem metrics
+      {% if debug | default(false) or 'filesystem' in monitor_vm_infra_metrics %}
+      filesystem:
+      {% endif %}
+
+      # Network metrics
+      {% if debug | default(false) or 'network' in monitor_vm_infra_metrics %}
+      network:
+      {% endif %}
+
+      # Linux-specific: Load metrics
+      {% if debug | default(false) or 'load' in monitor_vm_infra_metrics %}
+      load:
+      {% endif %}
+
+      # Process metrics
+      {% if debug | default(false) or monitor_vm_infra_metrics | selectattr('process', 'defined') | list | length > 0 %}
+      process:
+        {% include 'common/fragments/process_config.yml.j2' %}
+      {% endif %}
+{% endif %}
+
+  # Linux-specific: File log receiver
+  {% set logging_processes = [] %}
+  {% for item in monitor_vm_infra_metrics | default([]) %}
+    {% if item is mapping and 'process' in item %}
+      {% for proc_item in item.process %}
+        {% if proc_item is mapping and 'name' in proc_item %}
+          {% for proc in proc_item.name %}
+            {% if proc is mapping %}
+              {% for proc_name, proc_config in proc.items() %}
+                {% for config in proc_config %}
+                  {% if config is mapping and 'enable_logging' in config and config.enable_logging %}
+                    {% set logging_processes = logging_processes + [proc_name] %}
+                  {% endif %}
+                {% endfor %}
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+
+  {% if debug | default(false) or logging_processes | length > 0 %}
+  filelog:
+    include:
+      - /var/log/*.log
+      {% for process in logging_processes %}
+      - /var/log/{{ process }}/*.log
+      {% endfor %}
+    start_at: beginning
+  {% endif %}

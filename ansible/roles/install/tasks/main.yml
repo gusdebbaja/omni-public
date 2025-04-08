@@ -1,0 +1,52 @@
+---
+# Main tasks for installing OpenTelemetry Collector
+- name: Check installation status on Linux
+  include_tasks: linux_check.yml
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Check installation status on Windows
+  include_tasks: windows_check.yml
+  when: ansible_os_family == 'Windows'
+
+- name: Prepare for Linux installation
+  include_tasks: linux_prepare.yml
+  when: 
+    - ansible_os_family in ['RedHat', 'Debian']
+    - otelcol_install_required | default(false)
+
+- name: Prepare for Windows installation
+  include_tasks: windows_prepare.yml
+  when: 
+    - ansible_os_family == 'Windows'
+    - otelcol_install_required | default(false)
+
+- name: Download packages for Linux
+  include_tasks: linux_download.yml
+  when: 
+    - ansible_os_family in ['RedHat', 'Debian']
+    - otelcol_install_required | default(false)
+
+- name: Download packages for Windows
+  include_tasks: windows_download.yml
+  when: 
+    - ansible_os_family == 'Windows'
+    - otelcol_install_required | default(false)
+- name: Install binaries and configure service on Linux
+  include_tasks: linux_install.yml
+  when: 
+    - ansible_os_family in ['RedHat', 'Debian']
+    - otelcol_install_required | default(false)
+
+- name: Install service and configure on Windows
+  include_tasks: windows_install.yml
+  when: 
+    - ansible_os_family == 'Windows'
+    - otelcol_install_required | default(false)
+
+- name: Configure OpenTelemetry Collector on Linux
+  include_tasks: linux_configure.yml
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Configure OpenTelemetry Collector on Windows
+  include_tasks: windows_configure.yml
+  when: ansible_os_family == 'Windows'

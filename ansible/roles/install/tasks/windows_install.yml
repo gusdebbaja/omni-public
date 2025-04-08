@@ -1,0 +1,62 @@
+---
+# Install OpenTelemetry Collector binaries and service on Windows
+
+- name: Install otelcol-contrib MSI package
+  win_package:
+    path: "C:\\Temp\\otelcol-contrib-{{ otelcol_contrib_version }}.msi"
+    state: present
+    log_path: "{{ otelcol_log_dir }}\\otelcol-contrib-install.log"
+    arguments: "INSTALLDIR=\"{{ otelcol_install_dir }}\" /quiet /norestart"
+  register: msi_install
+
+- name: Create otelcol-contrib service account
+  win_user:
+    name: "otelcol-contrib"
+    password: "{{ otelcol_service_password }}"
+    password_never_expires: yes
+    description: "OpenTelemetry Collector service account"
+    user_cannot_change_password: yes
+    account_disabled: no
+    state: present
+  register: service_account
+
+- name: Grant service account 'Log on as a service' right
+  win_shell: |
+    $tempPath = [System.IO.Path]::GetTempFileName()
+    secedit /export /cfg $tempPath
+    $content = Get-Content -Path $tempPath
+    $logonAsServiceSetting = ($content | Select-String -Pattern "SeServiceLogonRight").ToString()
+
+    if ($logonAsServiceSetting) {
+      # Append to existing accounts
+      $updatedSetting = $logonAsServiceSetting -replace "SeServiceLogonRight = ", "SeServiceLogonRight = otelcol-contrib,"
+      $content = $content -replace [regex]::Escape($logonAsServiceSetting), $updatedSetting
+    } else {
+      # Create new setting
+      $content += "SeServiceLogonRight = otelcol-contrib"
+    }
+
+    $content | Out-File $tempPath
+    secedit /configure /db c:\windows\security\local.sdb /cfg $tempPath /areas USER_RIGHTS
+    Remove-Item -Path $tempPath
+  when: service_account is changed
+
+- name: Set directory permissions for service account
+  win_acl:
+    path: "{{ item }}"
+    user: otelcol-contrib
+    rights: ReadAndExecute
+    type: allow
+    state: present
+    inherit: yes
+  with_items:
+  - "{{ otelcol_install_dir }}"
+  - "{{ otelcol_config_dir }}"
+  - "{{ otelcol_log_dir }}"
+
+- name: Install otelcol-contrib as a service with specific account
+  win_shell: |
+    & "{{ otelcol_binary_path }}" --config="{{ otelcol_config_path }}" --service install --service.username=".\otelcol-contrib" --service.password="{{ otelcol_service_password }}"
+  args:
+    creates: "{{ otelcol_service_name }}"
+  no_log: true

@@ -1,0 +1,36 @@
+---
+- name: Test connection with certificate auth
+  win_command: whoami
+  register: whoami_result
+
+- name: Display current user
+  debug:
+    var: whoami_result.stdout
+
+- name: Check if ansible user is in Administrators group
+  win_shell: |
+    Get-LocalGroupMember -Group "Administrators" | ForEach-Object { $_.Name }
+  register: admin_members
+
+- name: Display admin group members
+  debug:
+    var: admin_members.stdout_lines
+
+- name: Verify certificate mapping
+  win_shell: |
+    Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -like "*AnsibleClient*" } | ForEach-Object {
+      Write-Output "Certificate: $($_.Subject), Thumbprint: $($_.Thumbprint)"
+    }
+  register: cert_mapping
+
+- name: Display certificate mapping
+  debug:
+    var: cert_mapping.stdout_lines
+
+- name: Create otelcol-contrib directories (Windows)
+  win_file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+  - "{{ otelcol_config_dir }}"
+  - "{{ otelcol_log_dir }}"

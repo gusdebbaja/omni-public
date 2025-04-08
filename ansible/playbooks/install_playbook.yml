@@ -7,21 +7,6 @@
     otelcol_force_install: false  # Default to not forcing installation
   
   pre_tasks:
-    - name: Include OS-specific variables
-      include_vars: "{{ item }}"
-      with_first_found:
-      - "../inventory/group_vars/{{ 'linux' if ansible_os_family in ['RedHat', 'Debian'] else ansible_os_family | lower }}/all.yml"
-      - "../inventory/group_vars/all.yml"
-      tags: always
-    
-    #- name: Ensure Python is installed (Linux)
-    #  package:
-    #    name: python3
-    #    state: present
-    #  when: ansible_os_family in ['RedHat', 'Debian']
-    #  tags: 
-    #    - prerequisites
-    
     - name: Create temp directory (Windows)
       win_file:
         path: C:\Temp
@@ -34,13 +19,8 @@
     - role: common
       tags: [common, install]
     
-    - role: linux_install
-      when: ansible_os_family in ['RedHat', 'Debian']
-      tags: [install, linux]
-    
-    - role: windows_install
-      when: ansible_os_family == 'Windows'
-      tags: [install, windows]
+    - role: install
+      tags: [install]
     
     - role: validation
       tags: [validate]

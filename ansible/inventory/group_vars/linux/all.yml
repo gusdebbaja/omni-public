@@ -1,9 +1,9 @@
+# Linux-specific variables
 ansible_python_interpreter: /usr/bin/python3
 otelcol_binary_path: "/usr/local/bin/otelcol-contrib"
 otelcol_config_dir: "/etc/otelcol-contrib"
-otelcol_config_path: "/etc/otelcol-contrib/config.yaml"
+otelcol_config_path: "/etc/otelcol-contrib/otelcol-contrib.yaml"
 otelcol_log_dir: "/var/log/otelcol-contrib"
 otelcol_data_dir: "/var/lib/otelcol-contrib"
-otelcol_contrib_version: "0.80.0" # Update to your desired version
 otelcol_download_url: "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v{{ otelcol_contrib_version }}/otelcol-contrib_{{ otelcol_contrib_version }}_linux_amd64.tar.gz"
 otelcol_user_groups: []

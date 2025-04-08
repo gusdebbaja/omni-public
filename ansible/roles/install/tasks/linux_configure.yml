@@ -1,0 +1,20 @@
+---
+# Configure OpenTelemetry Collector on Linux
+- name: Create otelcol-contrib configuration
+  become: true
+  template:
+    src: "{{ role_path }}/../../templates/otelcol-contrib.yaml.j2"
+    dest: "{{ otelcol_config_path }}"
+    mode: 644
+    owner: otelcol-contrib
+    group: otelcol-contrib
+  notify: restart otelcol-contrib
+
+- name: Enable and start otelcol-contrib service
+  become: true
+  systemd:
+    name: otelcol-contrib
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  when: otelcol_install_required | default(false)

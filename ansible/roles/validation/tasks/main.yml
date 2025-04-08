@@ -14,6 +14,7 @@
   when: ansible_facts.get('os_family', '') == 'Windows' or
         (inventory_hostname is search('windows'))
 
+
 - name: Set fact for installation status
   set_fact:
     otelcol_installed: "{{ (otelcol_binary.stat.exists | default(false)) or (otelcol_binary_win.stat.exists | default(false)) }}"

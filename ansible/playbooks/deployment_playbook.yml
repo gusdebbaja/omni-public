@@ -2,7 +2,7 @@
 - name: Deploy OpenTelemetry Collector Configuration
   hosts: all
   gather_facts: true
-  become: true
   
   roles:
+    - common
     - deployment

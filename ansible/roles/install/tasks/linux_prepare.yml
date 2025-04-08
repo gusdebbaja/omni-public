@@ -1,0 +1,25 @@
+---
+# Prepare for installation on Linux by setting up dependencies and users
+- name: Set OS-specific package dependencies
+  set_fact:
+    pkg_dependencies:
+    - curl
+    - tar
+    - "{{ 'policycoreutils-python-utils' if ansible_os_family == 'RedHat' else 'python3-selinux' if ansible_distribution == 'Ubuntu' else '' }}"
+
+- name: Install dependencies
+  become: true
+  package:
+    name: "{{ pkg_dependencies | select('string') | list }}"
+    state: present
+
+- name: Create otelcol-contrib user and group
+  become: true
+  user:
+    name: otelcol-contrib
+    system: yes
+    shell: /sbin/nologin
+    groups: "{{ otelcol_user_groups | default([]) }}"
+    append: yes
+    create_home: no
+    comment: "OpenTelemetry Collector service account"

@@ -1,0 +1,15 @@
+---
+# Download OpenTelemetry Collector packages for Windows
+- name: Create temp directory if it doesn't exist
+  win_file:
+    path: C:\Temp
+    state: directory
+
+- name: Download otelcol-contrib MSI package
+  win_get_url:
+    url: "{{ otelcol_download_url }}"
+    dest: "C:\\Temp\\otelcol-contrib-{{ otelcol_contrib_version }}.msi"
+  register: download_result
+  retries: 3
+  delay: 5
+  until: download_result is succeeded
