@@ -1,0 +1,26 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Create tmp directory
+      file:
+        path: "{{ playbook_dir }}/tmp"
+        state: directory
+        mode: '0755'
+
+    - name: Generate otelcol-contrib.yaml on controller
+      template:
+        src: "windows/otelcol-contrib.yaml.j2"
+        dest: "{{ playbook_dir }}/tmp/otelcol-contrib.yaml"
+      ignore_errors: true
+
+    - name: Display success message
+      debug:
+        msg: "Successfully generated otelcol-contrib.yaml at {{ playbook_dir }}/tmp/otelcol-contrib.yaml (check for errors!)"
+      when: not (lookup('file', "{{ playbook_dir }}/tmp/otelcol-contrib.yaml") == None)
+
+    - name: Display failure message
+      debug:
+        msg: "Failed to generate otelcol-contrib.yaml. Check the template for errors."
+      when: lookup('file', "{{ playbook_dir }}/tmp/otelcol-contrib.yaml") == None
