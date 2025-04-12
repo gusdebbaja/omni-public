@@ -32,6 +32,7 @@
   systemd:
     daemon_reload: yes
   become: true
+  notify: restart otelcol-contrib
 
 - name: Validate otelcol-contrib configuration
   command: "{{ otelcol_binary_path }} validate --config={{ otelcol_config_path }}"

@@ -1,0 +1,413 @@
+receivers:
+  snmp:
+    version: v2c
+    community: public
+    collection_interval: 60s
+    endpoint: udp://192.168.1.1:161
+    resource_attributes:
+      device.id:
+        oid: 1.3.6.1.2.1.1.5.0
+      device.type.name:
+        indexed_value_prefix: openwrt
+    attributes:
+      direction:
+        enum:
+        - in
+        - out
+      interface:
+        indexed_value_prefix: interface
+      protocol:
+        enum:
+        - ip
+        - tcp
+        - udp
+        - icmp
+      state:
+        enum:
+        - user
+        - system
+        - idle
+        - used
+        - total
+        - cached
+      period:
+        enum:
+        - 1m
+        - 5m
+        - 15m
+    metrics:
+      system.uptime:
+        unit: s
+        gauge:
+          value_type: int
+        scalar_oids:
+        - oid: 1.3.6.1.2.1.1.3.0
+      network.io.packets:
+        unit: '1'
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+        - oid: 1.3.6.1.2.1.2.2.1.11.1
+          attributes:
+          - name: interface
+            value: lo
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.17.1
+          attributes:
+          - name: interface
+            value: lo
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.2.2.1.11.2
+          attributes:
+          - name: interface
+            value: eth0
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.17.2
+          attributes:
+          - name: interface
+            value: eth0
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.2.2.1.11.6
+          attributes:
+          - name: interface
+            value: br_lan
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.17.6
+          attributes:
+          - name: interface
+            value: br_lan
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.2.2.1.11.7
+          attributes:
+          - name: interface
+            value: eth0_1
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.17.7
+          attributes:
+          - name: interface
+            value: eth0_1
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.2.2.1.11.8
+          attributes:
+          - name: interface
+            value: eth0_2
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.17.8
+          attributes:
+          - name: interface
+            value: eth0_2
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.2.2.1.11.9
+          attributes:
+          - name: interface
+            value: phy0_ap0
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.17.9
+          attributes:
+          - name: interface
+            value: phy0_ap0
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.2.2.1.11.10
+          attributes:
+          - name: interface
+            value: phy1_ap0
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.17.10
+          attributes:
+          - name: interface
+            value: phy1_ap0
+          - name: direction
+            value: out
+      network.io.bytes:
+        unit: By
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+        - oid: 1.3.6.1.2.1.2.2.1.10.1
+          attributes:
+          - name: interface
+            value: lo
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.16.1
+          attributes:
+          - name: interface
+            value: lo
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.2.2.1.10.2
+          attributes:
+          - name: interface
+            value: eth0
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.16.2
+          attributes:
+          - name: interface
+            value: eth0
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.2.2.1.10.6
+          attributes:
+          - name: interface
+            value: br_lan
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.16.6
+          attributes:
+          - name: interface
+            value: br_lan
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.2.2.1.10.7
+          attributes:
+          - name: interface
+            value: eth0_1
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.16.7
+          attributes:
+          - name: interface
+            value: eth0_1
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.2.2.1.10.8
+          attributes:
+          - name: interface
+            value: eth0_2
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.16.8
+          attributes:
+          - name: interface
+            value: eth0_2
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.2.2.1.10.9
+          attributes:
+          - name: interface
+            value: phy0_ap0
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.16.9
+          attributes:
+          - name: interface
+            value: phy0_ap0
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.2.2.1.10.10
+          attributes:
+          - name: interface
+            value: phy1_ap0
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.2.2.1.16.10
+          attributes:
+          - name: interface
+            value: phy1_ap0
+          - name: direction
+            value: out
+      network.io.bytes.hc:
+        unit: By
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        column_oids:
+        - oid: 1.3.6.1.2.1.31.1.1.1.6.1
+          attributes:
+          - name: interface
+            value: lo
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.31.1.1.1.10.1
+          attributes:
+          - name: interface
+            value: lo
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.31.1.1.1.6.2
+          attributes:
+          - name: interface
+            value: eth0
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.31.1.1.1.10.2
+          attributes:
+          - name: interface
+            value: eth0
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.31.1.1.1.6.6
+          attributes:
+          - name: interface
+            value: br_lan
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.31.1.1.1.10.6
+          attributes:
+          - name: interface
+            value: br_lan
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.31.1.1.1.6.7
+          attributes:
+          - name: interface
+            value: eth0_1
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.31.1.1.1.10.7
+          attributes:
+          - name: interface
+            value: eth0_1
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.31.1.1.1.6.8
+          attributes:
+          - name: interface
+            value: eth0_2
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.31.1.1.1.10.8
+          attributes:
+          - name: interface
+            value: eth0_2
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.31.1.1.1.6.9
+          attributes:
+          - name: interface
+            value: phy0_ap0
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.31.1.1.1.10.9
+          attributes:
+          - name: interface
+            value: phy0_ap0
+          - name: direction
+            value: out
+        - oid: 1.3.6.1.2.1.31.1.1.1.6.10
+          attributes:
+          - name: interface
+            value: phy1_ap0
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.31.1.1.1.10.10
+          attributes:
+          - name: interface
+            value: phy1_ap0
+          - name: direction
+            value: out
+      system.cpu:
+        unit: '1'
+        gauge:
+          value_type: double
+        scalar_oids:
+        - oid: 1.3.6.1.4.1.2021.11.50.0
+          attributes:
+          - name: state
+            value: user
+        - oid: 1.3.6.1.4.1.2021.11.52.0
+          attributes:
+          - name: state
+            value: system
+        - oid: 1.3.6.1.4.1.2021.11.53.0
+          attributes:
+          - name: state
+            value: idle
+      system.memory:
+        unit: By
+        gauge:
+          value_type: int
+        scalar_oids:
+        - oid: 1.3.6.1.4.1.2021.4.6.0
+          attributes:
+          - name: state
+            value: used
+        - oid: 1.3.6.1.4.1.2021.4.5.0
+          attributes:
+          - name: state
+            value: total
+        - oid: 1.3.6.1.4.1.2021.4.15.0
+          attributes:
+          - name: state
+            value: cached
+      system.load:
+        unit: '1'
+        gauge:
+          value_type: double
+        scalar_oids:
+        - oid: 1.3.6.1.4.1.2021.10.1.3.1
+          attributes:
+          - name: period
+            value: 1m
+        - oid: 1.3.6.1.4.1.2021.10.1.3.2
+          attributes:
+          - name: period
+            value: 5m
+        - oid: 1.3.6.1.4.1.2021.10.1.3.3
+          attributes:
+          - name: period
+            value: 15m
+      network.packets.ip:
+        unit: '1'
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        scalar_oids:
+        - oid: 1.3.6.1.2.1.4.3.0
+          attributes:
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.4.10.0
+          attributes:
+          - name: direction
+            value: out
+      network.packets.tcp:
+        unit: '1'
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        scalar_oids:
+        - oid: 1.3.6.1.2.1.6.10.0
+          attributes:
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.6.11.0
+          attributes:
+          - name: direction
+            value: out
+      network.packets.udp:
+        unit: '1'
+        sum:
+          aggregation: cumulative
+          monotonic: true
+          value_type: int
+        scalar_oids:
+        - oid: 1.3.6.1.2.1.7.1.0
+          attributes:
+          - name: direction
+            value: in
+        - oid: 1.3.6.1.2.1.7.4.0
+          attributes:
+          - name: direction
+            value: out
