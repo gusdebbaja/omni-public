@@ -1,41 +1,103 @@
 ---
-# Main tasks for deploying OpenTelemetry Collector configuration
-- name: Check if OpenTelemetry Collector is installed on Linux
-  ansible.builtin.include_tasks: linux_check.yml
-  when: ansible_os_family in ['RedHat', 'Debian']
+# Main tasks for OpenTelemetry configuration
 
-- name: Check if OpenTelemetry Collector is installed on Windows
-  ansible.builtin.include_tasks: windows_check.yml
-  when: ansible_os_family == 'Windows'
-
-- name: Fail if OpenTelemetry Collector is not installed
-  ansible.builtin.fail:
-    msg: "OpenTelemetry Collector is not installed on {{ inventory_hostname }}. Please run the install_playbook first."
-  when: not otelcol_installed | default(false)
-
-- name: Deploy OpenTelemetry Collector configuration on Linux
-  ansible.builtin.include_tasks: linux_deploy.yml
-  when: ansible_os_family in ['RedHat', 'Debian']
-
-- name: Deploy OpenTelemetry Collector configuration on Windows
-  ansible.builtin.include_tasks: windows_deploy.yml
-  when: ansible_os_family == 'Windows'
-- name: Set empty list for collecting overrides
+# Set initial base configuration
+- name: Set base configuration
   ansible.builtin.set_fact:
-    collected_overrides: []
+    effective_otelcol_config: "{{ otelcol_base_config }}"
 
-- name: Find all otelcol_config_overrides variables
+# Debug the base configuration
+- name: Debug base configuration
+  ansible.builtin.debug:
+    var: effective_otelcol_config
+    verbosity: 2
+
+# Find all relevant configuration variables
+- name: Get list of configuration variable names
   ansible.builtin.set_fact:
-    collected_overrides: "{{ collected_overrides + [hostvars[inventory_hostname][item] | default({})] }}"
-  loop: "{{ hostvars[inventory_hostname] | dict2items | map(attribute='key') | select('match', '^otelcol_config_overrides.*$') | list }}"
-  when: hostvars[inventory_hostname][item] is defined
+    config_var_names: "{{ hostvars[inventory_hostname] | dict2items | map(attribute='key') | select('match', '^otelcol_.*config$') | list }}"
 
-- name: Apply all overrides to base configuration
+- name: Debug found configuration variables
+  ansible.builtin.debug:
+    var: config_var_names
+    verbosity: 1
+
+# Initialize list for collecting configuration overrides
+- name: Initialize overrides list
   ansible.builtin.set_fact:
-    effective_otelcol_config: "{{ otelcol_config }}"
+    config_overrides: []
 
-- name: Merge all found overrides
+# Collect all configuration overrides
+- name: Collect configuration overrides
+  ansible.builtin.set_fact:
+    config_overrides: "{{ config_overrides + [hostvars[inventory_hostname][item]] }}"
+  loop: "{{ config_var_names }}"
+  when: hostvars[inventory_hostname][item] is defined and item != 'otelcol_base_config'
+
+- name: Debug collected overrides
+  ansible.builtin.debug:
+    var: config_overrides
+    verbosity: 1
+
+# Apply all overrides to base configuration
+- name: Apply configuration overrides
   ansible.builtin.set_fact:
     effective_otelcol_config: "{{ effective_otelcol_config | combine(item, recursive=True) }}"
-  loop: "{{ collected_overrides }}"
-  when: collected_overrides | length > 0
+  loop: "{{ config_overrides }}"
+  when: config_overrides | length > 0
+
+# Debug final merged configuration
+- name: Debug effective configuration
+  ansible.builtin.debug:
+    var: effective_otelcol_config
+    verbosity: 1
+
+# Create temporary file for debugging
+- name: Create temporary file for inspection
+  ansible.builtin.tempfile:
+    state: file
+    suffix: otelcol.yaml
+  register: temp_yaml_file
+  delegate_to: localhost
+  when: ansible_verbosity > 1
+
+# Generate config file for inspection
+- name: Generate config for inspection
+  ansible.builtin.template:
+    src: otelcol-contrib.yaml.j2
+    dest: "{{ temp_yaml_file.path }}"
+  delegate_to: localhost
+  when: ansible_verbosity > 1 and temp_yaml_file is defined
+
+# Display generated config
+- name: Display generated configuration
+  ansible.builtin.command: "cat {{ temp_yaml_file.path }}"
+  register: config_content
+  delegate_to: localhost
+  changed_when: false
+  when: ansible_verbosity > 1 and temp_yaml_file is defined
+
+- name: Show configuration content
+  ansible.builtin.debug:
+    msg: "{{ config_content.stdout_lines }}"
+  when: ansible_verbosity > 1 and config_content is defined
+
+# Deploy configuration to Linux
+- name: Deploy configuration to Linux
+  ansible.builtin.template:
+    src: otelcol-contrib.yaml.j2
+    dest: "{{ otelcol_config_path }}"
+    mode: '0644'
+    owner: "otelcol-contrib"
+    group: "otelcol-contrib"
+  become: true
+  when: ansible_os_family in ['RedHat', 'Debian']
+  notify: restart otelcol-contrib Linux
+
+# Deploy configuration to Windows
+- name: Deploy configuration to Windows
+  ansible.windows.win_template:
+    src: otelcol-contrib.yaml.j2
+    dest: "{{ otelcol_config_path }}"
+  when: ansible_os_family == 'Windows'
+  notify: restart otelcol-contrib windows

@@ -1,4 +1,4 @@
-otel_override:
+otelcol_linux_config:
   collect:
     journald:
       enabled: true

@@ -1,6 +1,6 @@
 ---
 # Handlers for deployment role
-- name: restart otelcol-contrib
+- name: restart otelcol-contrib Linux
   service:
     name: otelcol-contrib
     state: restarted

@@ -1,0 +1,55 @@
+# Default OpenTelemetry Collector configuration
+otelcol_base_config:
+  receivers:
+    otlp:
+      enabled: true
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+  
+  processors:
+    batch:
+      enabled: true
+    memory_limiter:
+      enabled: true
+      limit_mib: 100
+      spike_limit_mib: 20
+    resourcedetection:
+      enabled: true
+      detectors: [system, env]
+  
+  exporters:
+    logging:
+      enabled: true
+      verbosity: detailed
+    otlp:
+      enabled: false
+      endpoint: otlp.example.com:4317
+    prometheus:
+      enabled: false
+      endpoint: 0.0.0.0:8889
+    splunk_hec:
+      enabled: false
+      endpoint: "https://splunk.example.com:8088/services/collector"
+      token: ""
+      source: "otelcol"
+      sourcetype: "otelcol"
+      index: "main"
+
+  service:
+    pipelines:
+      metrics:
+        receivers: ["hostmetrics", "otlp"]
+        processors: ["memory_limiter", "batch", "resourcedetection"]
+        exporters: ["logging"]
+      traces:
+        receivers: ["otlp"]
+        processors: ["memory_limiter", "batch"]
+        exporters: ["logging"]
+      logs:
+        receivers: ["otlp"]
+        processors: ["memory_limiter", "batch"]
+        exporters: ["logging"]
+        

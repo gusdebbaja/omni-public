@@ -1,24 +1,8 @@
-otel:
-  global:
-    service_name: "{{ inventory_hostname }}"
-    log_level: info
-  
-  collect:
+otelcol_global_config:
+  receivers:
     hostmetrics:
       enabled: true
-      collection_interval: 60s
       scrapers:
-        - cpu
-        - memory
-        - disk
-  
-  processors:
-    batch:
-      enabled: true
-    attributes:
-      enabled: true
-  
-  send_to:
-    splunk_hec:
-      endpoint: "https://splunk.example.com:8088/services/collector/event"
-      token: ""
+        cpu: {}
+        memory: {}
+        disk: {}
