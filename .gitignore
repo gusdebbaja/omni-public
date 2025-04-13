@@ -23,7 +23,7 @@ vault.yml
 **/vault/
 ansible-vault-password
 *.vault
-**/.ansible/
+**/.ansible
 
 # Certificate files
 **/ansible_certs/
@@ -74,3 +74,10 @@ tmp/
 temp/
 .tmp/
 .qodo
+
+.ansible
+ansible/scripts/vm-scouter/scouter-windows-amd64.exe
+ansible/scripts/vm-scouter/scouter-linux-arm64
+ansible/scripts/vm-scouter/scouter-linux-amd64
+ansible/scripts/vm-scouter/scouter-darwin-amd64
+ansible/scripts/go.sum

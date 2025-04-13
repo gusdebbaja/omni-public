@@ -1,0 +1,7 @@
+otel_override:
+  collect:
+    journald:
+      enabled: true
+      units: ["docker", "sshd"]
+      priority: "info"
+  

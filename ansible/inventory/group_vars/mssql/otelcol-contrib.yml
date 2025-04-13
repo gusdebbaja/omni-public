@@ -1,0 +1,14 @@
+# MSSQL-specific configuration
+otel:
+  collect:
+    mssql:
+      enabled: true
+      collection_interval: 120s
+      counters:
+        - "\\SQLServer:Buffer Manager\\*"
+        - "\\SQLServer:SQL Statistics\\*"
+  
+  processors:
+    redaction:
+      enabled: true
+      blocked_patterns: ["password", "creditcard"]  

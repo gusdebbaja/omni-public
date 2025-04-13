@@ -1,22 +1,41 @@
 ---
 # Main tasks for deploying OpenTelemetry Collector configuration
 - name: Check if OpenTelemetry Collector is installed on Linux
-  include_tasks: linux_check.yml
+  ansible.builtin.include_tasks: linux_check.yml
   when: ansible_os_family in ['RedHat', 'Debian']
 
 - name: Check if OpenTelemetry Collector is installed on Windows
-  include_tasks: windows_check.yml
+  ansible.builtin.include_tasks: windows_check.yml
   when: ansible_os_family == 'Windows'
 
 - name: Fail if OpenTelemetry Collector is not installed
-  fail:
+  ansible.builtin.fail:
     msg: "OpenTelemetry Collector is not installed on {{ inventory_hostname }}. Please run the install_playbook first."
   when: not otelcol_installed | default(false)
 
 - name: Deploy OpenTelemetry Collector configuration on Linux
-  include_tasks: linux_deploy.yml
+  ansible.builtin.include_tasks: linux_deploy.yml
   when: ansible_os_family in ['RedHat', 'Debian']
 
 - name: Deploy OpenTelemetry Collector configuration on Windows
-  include_tasks: windows_deploy.yml
+  ansible.builtin.include_tasks: windows_deploy.yml
   when: ansible_os_family == 'Windows'
+- name: Set empty list for collecting overrides
+  ansible.builtin.set_fact:
+    collected_overrides: []
+
+- name: Find all otelcol_config_overrides variables
+  ansible.builtin.set_fact:
+    collected_overrides: "{{ collected_overrides + [hostvars[inventory_hostname][item] | default({})] }}"
+  loop: "{{ hostvars[inventory_hostname] | dict2items | map(attribute='key') | select('match', '^otelcol_config_overrides.*$') | list }}"
+  when: hostvars[inventory_hostname][item] is defined
+
+- name: Apply all overrides to base configuration
+  ansible.builtin.set_fact:
+    effective_otelcol_config: "{{ otelcol_config }}"
+
+- name: Merge all found overrides
+  ansible.builtin.set_fact:
+    effective_otelcol_config: "{{ effective_otelcol_config | combine(item, recursive=True) }}"
+  loop: "{{ collected_overrides }}"
+  when: collected_overrides | length > 0
