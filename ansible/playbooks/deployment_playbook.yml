@@ -2,14 +2,14 @@
 - name: Deploy OpenTelemetry Collector Configuration
   hosts: all
   gather_facts: true
-  
+
   pre_tasks:
     # Conditionally set OS-specific configurations
     - name: Apply Linux config
       ansible.builtin.set_fact:
         otelcol_os_config: "{{ otelcol_linux_config }}"
       when: ansible_os_family in ['RedHat', 'Debian']
-    
+
     - name: Apply Windows config
       ansible.builtin.set_fact:
         otelcol_os_config: "{{ otelcol_windows_config }}"
