@@ -1,12 +1,5 @@
 # ansible/roles/deployment/tasks/windows_deploy.yml
 ---
-# Deploy OpenTelemetry Collector configuration to Windows
-- name: Deploy otelcol-contrib configuration
-  win_template:
-    src: "windows/otelcol-contrib.yaml.j2"
-    dest: "{{ otelcol_config_path }}"
-  notify: restart otelcol-contrib windows
-
 # Add this task to check the service configuration
 - name: Check Windows service configuration
   win_shell: |
@@ -44,7 +37,7 @@
         exit 1
     }
   when: "otelcol_config_path not in (service_config.stdout | default(''))"
-  notify: restart otelcol-contrib windows
+  notify: restart otelcol-contrib Windows
   
 - name: Validate otelcol-contrib configuration
   win_shell: |
@@ -56,3 +49,11 @@
   debug:
     msg: "Configuration validation successful"
   when: config_validation_win.rc == 0
+
+# Deploy OpenTelemetry Collector configuration to Windows
+#- name: Deploy otelcol-contrib configuration
+#  win_template:
+#    src: "templates/otelcol-contrib.yaml.j2"
+#    dest: "{{ otelcol_config_path }}"
+#  notify: restart otelcol-contrib Windows
+

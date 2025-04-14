@@ -19,6 +19,25 @@
     state: present
   when: ansible_os_family == 'Debian'
 
+- name: Find otelcol-contrib binary path
+  command: which otelcol-contrib
+  register: otelcol_path_result
+  changed_when: false
+
+- name: Set otelcol binary path
+  set_fact:
+    otelcol_binary_path: "{{ otelcol_path_result.stdout }}"
+
+- name: Deploy systemd service file
+  template:
+    src: "templates/otelcol-contrib.service.j2"
+    dest: "/etc/systemd/system/otelcol-contrib.service"
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  notify: restart otelcol-contrib
+
 - name: Configure SELinux context for otelcol-contrib (RedHat)
   become: true
   block:
@@ -35,7 +54,9 @@
       state: present
     when: selinux_status.stdout is defined and selinux_status.stdout != "Disabled"
 
-  - name: Apply SELinux context
-    command: restorecon -v "{{ otelcol_binary_path }}"
-    when: selinux_status.stdout is defined and selinux_status.stdout != "Disabled"
-  when: ansible_os_family == 'RedHat'
+- name: Apply SELinux context
+  command: restorecon -v "{{ otelcol_binary_path }}"
+  when:
+    - ansible_os_family == 'RedHat'
+    - selinux_status.stdout is defined
+    - selinux_status.stdout != "Disabled"

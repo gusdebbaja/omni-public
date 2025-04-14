@@ -6,7 +6,7 @@
     state: restarted
   when: ansible_os_family in ['RedHat', 'Debian']
 
-- name: restart otelcol-contrib windows
+- name: restart otelcol-contrib Windows
   win_service:
     name: otelcol-contrib
     state: restarted

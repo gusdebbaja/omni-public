@@ -1,0 +1,2 @@
+# Default OpenTelemetry Collector configuration
+otelcol_base_config:

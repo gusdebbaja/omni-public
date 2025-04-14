@@ -1,52 +1,103 @@
 ---
 # Main tasks for installing OpenTelemetry Collector
 - name: Check installation status on Linux
-  include_tasks: linux_check.yml
+  ansible.builtin.include_tasks: linux_check.yml
   when: ansible_os_family in ['RedHat', 'Debian']
 
 - name: Check installation status on Windows
-  include_tasks: windows_check.yml
+  ansible.builtin.include_tasks: windows_check.yml
   when: ansible_os_family == 'Windows'
 
 - name: Prepare for Linux installation
-  include_tasks: linux_prepare.yml
+  ansible.builtin.include_tasks: linux_prepare.yml
   when: 
     - ansible_os_family in ['RedHat', 'Debian']
     - otelcol_install_required | default(false)
 
 - name: Prepare for Windows installation
-  include_tasks: windows_prepare.yml
+  ansible.builtin.include_tasks: windows_prepare.yml
   when: 
     - ansible_os_family == 'Windows'
     - otelcol_install_required | default(false)
 
 - name: Download packages for Linux
-  include_tasks: linux_download.yml
+  ansible.builtin.include_tasks: linux_download.yml
   when: 
     - ansible_os_family in ['RedHat', 'Debian']
     - otelcol_install_required | default(false)
 
 - name: Download packages for Windows
-  include_tasks: windows_download.yml
+  ansible.builtin.include_tasks: windows_download.yml
   when: 
     - ansible_os_family == 'Windows'
     - otelcol_install_required | default(false)
 - name: Install binaries and configure service on Linux
-  include_tasks: linux_install.yml
+  ansible.builtin.include_tasks: linux_install.yml
   when: 
     - ansible_os_family in ['RedHat', 'Debian']
     - otelcol_install_required | default(false)
 
 - name: Install service and configure on Windows
-  include_tasks: windows_install.yml
+  ansible.builtin.include_tasks: windows_install.yml
   when: 
     - ansible_os_family == 'Windows'
     - otelcol_install_required | default(false)
 
+# Set initial base configuration
+- name: Set base configuration
+  ansible.builtin.set_fact:
+    effective_otelcol_config: "{{ otelcol_base_config }}"
+
+# Debug the base configuration
+- name: Debug base configuration
+  ansible.builtin.debug:
+    var: effective_otelcol_config
+    verbosity: 2
+
+# Find all relevant configuration variables
+- name: Get list of configuration variable names
+  ansible.builtin.set_fact:
+    config_var_names: "{{ hostvars[inventory_hostname] | dict2items | map(attribute='key') | select('match', '^otelcol_.*config$') | list }}"
+
+- name: Debug found configuration variables
+  ansible.builtin.debug:
+    var: config_var_names
+    verbosity: 1
+
+# Initialize list for collecting configuration overrides
+- name: Initialize overrides list
+  ansible.builtin.set_fact:
+    config_overrides: []
+
+# Collect all configuration overrides
+- name: Collect configuration overrides
+  ansible.builtin.set_fact:
+    config_overrides: "{{ config_overrides + [hostvars[inventory_hostname][item]] }}"
+  loop: "{{ config_var_names }}"
+  when: hostvars[inventory_hostname][item] is defined and item != 'otelcol_base_config'
+
+- name: Debug collected overrides
+  ansible.builtin.debug:
+    var: config_overrides
+    verbosity: 1
+
+# Apply all overrides to base configuration
+- name: Apply configuration overrides
+  ansible.builtin.set_fact:
+    effective_otelcol_config: "{{ effective_otelcol_config | combine(item, recursive=True) }}"
+  loop: "{{ config_overrides }}"
+  when: config_overrides | length > 0
+
+# Debug final merged configuration
+- name: Debug effective configuration
+  ansible.builtin.debug:
+    var: effective_otelcol_config
+    verbosity: 1
+
 - name: Configure OpenTelemetry Collector on Linux
-  include_tasks: linux_configure.yml
+  ansible.builtin.include_tasks: linux_configure.yml
   when: ansible_os_family in ['RedHat', 'Debian']
 
 - name: Configure OpenTelemetry Collector on Windows
-  include_tasks: windows_configure.yml
+  ansible.builtin.include_tasks: windows_configure.yml
   when: ansible_os_family == 'Windows'

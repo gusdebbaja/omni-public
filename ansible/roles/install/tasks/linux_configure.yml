@@ -3,12 +3,41 @@
 - name: Create otelcol-contrib configuration
   become: true
   template:
-    src: "{{ role_path }}/../../templates/otelcol-contrib.yaml.j2"
-    dest: "{{ otelcol_config_path }}"
-    mode: 644
+    src: "templates/otelcol-contrib.yaml.j2"
+    dest: /etc/otelcol-contrib/otelcol-contrib.yaml
+    mode: '0644'
     owner: otelcol-contrib
     group: otelcol-contrib
   notify: restart otelcol-contrib
+
+- name: Ensure otelcol-contrib user/group exists
+  ansible.builtin.user:
+    name: otelcol-contrib
+    system: yes
+    create_home: no
+    state: present
+
+- name: Deploy systemd service file
+  ansible.builtin.template:
+    src: templates/otelcol-contrib.service.j2
+    dest: /etc/systemd/system/otelcol-contrib.service
+    mode: '0644'
+  become: true
+  vars:
+    otelcol_binary_path: "/usr/bin/otelcol-contrib"  # Default path (adjust if needed)
+    otelcol_config_path: "/etc/otelcol-contrib/otelcol-config.yaml"  
+  notify:
+    - Reload systemd
+    - Enable otelcol-contrib
+
+- name: Ensure config directory exists
+  ansible.builtin.file:
+    path: /etc/otelcol-contrib
+    state: directory
+    mode: '0755'
+    owner: otelcol-contrib
+    group: otelcol-contrib
+  become: true
 
 - name: Enable and start otelcol-contrib service
   become: true

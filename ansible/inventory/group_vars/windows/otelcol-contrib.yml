@@ -1,9 +1,1 @@
 otelcol_windows_config:
-  collect:
-    windowseventlog:
-      enabled: true
-      channel: ["Application", "System"]
-  
-  processors:
-    spike_limit_mib: 20
-    spike_limit_percentage: 20

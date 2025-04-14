@@ -1,37 +1,54 @@
 ---
 # Uninstall OpenTelemetry Collector from Linux
-- name: Stop and disable otelcol-contrib service
-  systemd:
+- name: Stop and disable service (if still present)
+  ansible.builtin.systemd:
     name: otelcol-contrib
     state: stopped
     enabled: no
+  ignore_errors: yes
+  become: true
+
+- name: Reset failed state in systemd
+  ansible.builtin.command: systemctl reset-failed otelcol-contrib
+  become: true
+  ignore_errors: yes
+
+- name: Reload systemd daemon
+  ansible.builtin.command: systemctl daemon-reload
+  become: true
 
 - name: Remove otelcol-contrib binary
   file:
     path: "{{ otelcol_binary_path }}"
     state: absent
+  become: true
 
 - name: Remove otelcol-contrib service file
   file:
-    path: /etc/systemd/system/otelcol-contrib.service
+    path: /usr/lib/systemd/system/otelcol-contrib.service
     state: absent
+  become: true
 
 - name: Remove otelcol-contrib configuration
   file:
     path: "{{ otelcol_config_path }}"
     state: absent
+  become: true
 
 - name: Remove otelcol-contrib configuration directory
   file:
     path: "{{ otelcol_config_dir }}"
     state: absent
+  become: true
 
 - name: Remove otelcol-contrib log directory
   file:
     path: "{{ otelcol_log_dir }}"
     state: absent
+  become: true
 
 - name: Remove otelcol-contrib data directory
   file:
     path: "{{ otelcol_data_dir | default('/var/lib/otelcol-contrib') }}"
     state: absent
+  become: true

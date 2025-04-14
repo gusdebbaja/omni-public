@@ -1,21 +1,31 @@
 ---
 # Tasks for uninstalling OpenTelemetry Collector
-- name: Check installation status
-  include_tasks: "{{ (ansible_os_family | lower ~ '_check.yml') if ansible_os_family == 'Windows' else 'linux_check.yml' }}"
-  when: ansible_os_family in ['RedHat', 'Debian', 'Windows']
+- name: Include Windows check tasks
+  ansible.builtin.include_tasks: windows_check.yml
+  when: ansible_os_family == 'Windows'
 
-- name: Uninstall OpenTelemetry Collector
-  include_tasks: "{{ (ansible_os_family | lower ~ '_uninstall.yml') if ansible_os_family == 'Windows' else 'linux_uninstall.yml' }}"
-  when: 
-    - ansible_os_family in ['RedHat', 'Debian', 'Windows']
+- name: Include Linux check tasks
+  ansible.builtin.include_tasks: linux_check.yml
+  when: ansible_os_family in ['RedHat', 'Debian']
+
+- name: Include Windows uninstall tasks
+  ansible.builtin.include_tasks: windows_uninstall.yml
+  when:
+    - ansible_os_family == 'Windows'
+    - otelcol_installed | default(false)
+
+- name: Include Linux uninstall tasks
+  ansible.builtin.include_tasks: linux_uninstall.yml
+  when:
+    - ansible_os_family in ['RedHat', 'Debian']
     - otelcol_installed | default(false)
 
 - name: Display uninstallation status
-  debug:
+  ansible.builtin.debug:
     msg: "OpenTelemetry Collector has been uninstalled from {{ inventory_hostname }}"
   when: otelcol_installed | default(false)
 
 - name: Display not installed message
-  debug:
+  ansible.builtin.debug:
     msg: "OpenTelemetry Collector was not installed on {{ inventory_hostname }}"
   when: not otelcol_installed | default(false)

@@ -16,5 +16,5 @@
       when: ansible_os_family == 'Windows'
 
   roles:
-    - common
+    #- common
     - deployment

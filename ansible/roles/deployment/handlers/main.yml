@@ -7,7 +7,7 @@
   become: true
   when: ansible_os_family in ['RedHat', 'Debian']
 
-- name: Restart Otelcol-contrib Windows
+- name: restart otelcol-contrib Windows
   ansible.windows.win_service:
     name: otelcol-contrib
     state: restarted

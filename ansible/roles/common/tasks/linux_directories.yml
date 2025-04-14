@@ -6,7 +6,7 @@
   file:
     path: "{{ item }}"
     state: directory
-    mode: 755
+    mode: '0755'
     owner: "{{ (otelcol_user | default('otelcol-contrib')) if otelcol_install_required | default(false) else omit }}"
     group: "{{ (otelcol_user | default('otelcol-contrib')) if otelcol_install_required | default(false) else omit }}"
   with_items:

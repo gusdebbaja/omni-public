@@ -18,7 +18,7 @@
   get_url:
     url: "{{ otelcol_download_url }}"
     dest: "/tmp/otelcol-contrib-{{ otelcol_contrib_version }}.tar.gz"
-    mode: 644
+    mode: '0644'
   register: download_result
   retries: 3
   delay: 5
@@ -34,7 +34,7 @@
   copy:
     src: "/tmp/otelcol-contrib"
     dest: "{{ otelcol_binary_path }}"
-    mode: 755
+    mode: '0755'
     remote_src: yes
 
 - name: Start otelcol-contrib service

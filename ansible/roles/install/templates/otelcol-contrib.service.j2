@@ -1,0 +1,17 @@
+# otelcol-contrib.service.j2
+[Unit]
+Description=OpenTelemetry Collector Contrib
+After=network.target
+
+[Service]
+Type=simple
+User=otelcol-contrib
+Group=otelcol-contrib
+ExecStart={{ otelcol_binary_path }} --config={{ otelcol_config_path }}
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+EnvironmentFile=-/etc/otelcol-contrib/otelcol-contrib.env
+
+[Install]
+WantedBy=multi-user.target

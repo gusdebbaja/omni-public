@@ -2,7 +2,35 @@ otelcol_global_config:
   receivers:
     hostmetrics:
       enabled: true
+      collection_interval: "60s"
       scrapers:
-        cpu: {}
-        memory: {}
-        disk: {}
+        - cpu
+        - memory
+        - disk
+  
+  processors:
+    batch:
+      enabled: true
+    memory_limiter:
+      enabled: true
+      limit_mib: 500
+      spike_limit_mib: 100
+    resourcedetection:
+      detectors: [system, env]
+      override: false
+      system:
+        hostname_sources: [os, dns, cname]
+  
+  exporters:
+    splunk_hec:
+      enabled: true
+      endpoint: "https://splunk.example.com:8088/services/collector"
+      token: "your_splunk_hec_token"
+      index: "otelcol_metrics"  
+
+  service:
+    pipelines:
+      metrics:
+        receivers: ["hostmetrics"]
+        processors: ["memory_limiter", "batch", "resourcedetection"]
+        exporters: [splunk_hec]

@@ -1,10 +1,11 @@
 ---
 # Check if OpenTelemetry Collector is installed on Linux
-- name: Check if otelcol-contrib is installed (Linux)
-  stat:
-    path: "{{ otelcol_binary_path }}"
+- name: Find otelcol-contrib binary in PATH
+  ansible.builtin.command: "command -v otelcol-contrib"
   register: otelcol_binary
+  ignore_errors: yes  
+  changed_when: false  
 
-- name: Set fact for installation status
-  set_fact:
-    otelcol_installed: "{{ otelcol_binary.stat.exists }}"
+- name: Set installation status fact
+  ansible.builtin.set_fact:
+    otelcol_installed: "{{ otelcol_binary.stdout }}"

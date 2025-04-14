@@ -11,7 +11,7 @@
 
     - name: Generate otelcol-contrib.yaml on controller
       template:
-        src: "windows/otelcol-contrib.yaml.j2"
+        src: "templates/otelcol-contrib.yaml.j2"
         dest: "{{ playbook_dir }}/tmp/otelcol-contrib.yaml"
       ignore_errors: true
 

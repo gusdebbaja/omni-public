@@ -4,11 +4,24 @@
   set_fact:
     pkg_ext: "{{ 'rpm' if ansible_os_family == 'RedHat' else 'deb' }}"
 
+- name: Map architecture for otelcol-contrib download
+  set_fact:
+    otelcol_arch: >-
+      {% if ansible_architecture == 'x86_64' %}
+        amd64
+      {% else %}
+        {{ ansible_architecture }}
+      {% endif %}
+
+- name: Sanitize architecture string
+  set_fact:
+    otelcol_arch: "{{ otelcol_arch | trim }}"
+
 - name: Download otelcol-contrib package
   get_url:
-    url: "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v{{ otelcol_contrib_version }}/otelcol-contrib_{{ otelcol_contrib_version }}_{{ ansible_architecture }}.{{ pkg_ext }}"
+    url: "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v{{ otelcol_contrib_version }}/otelcol-contrib_{{ otelcol_contrib_version }}_linux_{{ otelcol_arch }}.{{ pkg_ext }}"    
     dest: "/tmp/otelcol-contrib-{{ otelcol_contrib_version }}.{{ pkg_ext }}"
-    mode: 644
+    mode: 0644
     timeout: 60
     validate_certs: yes
   register: download_result

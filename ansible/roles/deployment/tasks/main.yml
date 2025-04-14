@@ -66,6 +66,7 @@
   ansible.builtin.template:
     src: otelcol-contrib.yaml.j2
     dest: "{{ temp_yaml_file.path }}"
+    mode: '0644'
   delegate_to: localhost
   when: ansible_verbosity > 1 and temp_yaml_file is defined
 
@@ -100,4 +101,4 @@
     src: otelcol-contrib.yaml.j2
     dest: "{{ otelcol_config_path }}"
   when: ansible_os_family == 'Windows'
-  notify: restart otelcol-contrib windows
+  notify: restart otelcol-contrib Windows
