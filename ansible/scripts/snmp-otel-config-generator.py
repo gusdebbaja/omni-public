@@ -14,13 +14,13 @@ Features:
 - Adds the receiver to metrics pipeline automatically
 
 Usage:
-  python3 advanced_snmp_otel_generator.py --host 192.168.1.222 [--port 161]
+  python3 snmp-otel-config-generator.py --host 192.168.1.222 [--port 161]
   
   # Use with existing snmpwalk output:
-  python3 advanced_snmp_otel_generator.py --input snmpoutput.txt --host 192.168.1.222
+  python3 snmp-otel-config-generator.py --input snmpoutput.txt --host 192.168.1.222
   
   # Inject into existing config:
-  python3 advanced_snmp_otel_generator.py --host 192.168.1.222 --inject-into /etc/otel/config.yaml
+  python3 snmp-otel-config-generator.py --host 192.168.1.222 --inject-into /etc/otel/config.yaml
 
 Requirements: PyYAML
 
