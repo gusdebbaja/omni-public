@@ -174,7 +174,7 @@ If the service fails to start, the playbooks will automatically collect and disp
 - Service capabilities
 - Permissions on the credentials directory
 
-**Note:** The `deploy-config.yml` playbook will continue execution even if the service is currently in a failed state. This allows you to fix broken configurations that may be causing the service to fail.
+**Note:** The `deploy-config-linux.yml` playbook will continue execution even if the service is currently in a failed state. This allows you to fix broken configurations that may be causing the service to fail.
 
 Common issues:
 1. **Configuration syntax errors**: Check the validation output
