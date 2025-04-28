@@ -101,7 +101,6 @@ ansible-vault create group_vars/all/vault.yml
 Add your secrets to the vault file:
 ```yaml
 vault_splunk_token: "your-actual-splunk-token"
-vault_api_key: "your-actual-api-key"
 ```
 
 ### 2. Install OpenTelemetry Collector
@@ -125,7 +124,7 @@ ansible-playbook install-linux.yml -i inventory/hosts --extra-vars "otelcol_cont
 ansible-playbook install-linux.yml -i "192.168.122.162," --user=ansible --ask-pass --become --ask-become-pass --ask-vault-pass
 
 # For testing: Providing credentials directly (insecure, use only for testing)
-ansible-playbook install-linux.yml -i "192.168.122.162," --extra-vars "vault_splunk_token=test-token vault_api_key=test-key" --user=ansible --become --ask-become-pass
+ansible-playbook install-linux.yml -i "192.168.122.162," --extra-vars "vault_splunk_token=test-token" --user=ansible --become --ask-become-pass
 ```
 
 ### 3. Update Configuration
@@ -143,7 +142,7 @@ ansible-playbook deploy-config.yml -i inventory/hosts --limit collector1 --ask-v
 ansible-playbook deploy-config.yml -i "192.168.122.162," --user=ansible --ask-pass --become --ask-become-pass --ask-vault-pass
 
 # For testing: Providing credentials directly (insecure, use only for testing)
-ansible-playbook deploy-config.yml -i "192.168.122.162," --extra-vars "vault_splunk_token=test-token vault_api_key=test-key" --user=ansible --become --ask-become-pass
+ansible-playbook deploy-config.yml -i "192.168.122.162," --extra-vars "vault_splunk_token=test-token" --user=ansible --become --ask-become-pass
 ```
 
 ## Configuration Template
@@ -155,10 +154,6 @@ Your `otelcol-contrib.yaml.j2` template should reference the secure environment 
 exporters:
   splunk_hec:
     token: "${pass_splunk_token}"
-    # other configuration...
-  otlp:
-    headers:
-      api-key: "${pass_api_key}"
     # other configuration...
 ```
 
@@ -179,7 +174,7 @@ If the service fails to start, the playbooks will automatically collect and disp
 Common issues:
 1. **Configuration syntax errors**: Check the validation output
 2. **Missing or incorrect template variables**: Ensure all required variables are defined
-3. **Incorrect environment variable references**: Use `${pass_splunk_token}` and `${pass_api_key}` (not the vault variables directly)
+3. **Incorrect environment variable references**: Use `${pass_splunk_token}`  (not the vault variables directly)
 4. **SELinux or AppArmor restrictions**: May need additional policies
 5. **Resource constraints**: Check if the service has enough resources (memory, file descriptors)
 6. **Network connectivity issues**: If the service can't reach required endpoints
@@ -191,7 +186,6 @@ To manually validate your configuration:
 ```bash
 # Export temporary environment variables for validation
 export pass_splunk_token="your-token"
-export pass_api_key="your-api-key"
 
 # Validate configuration
 otelcol-contrib validate --config=/etc/otelcol-contrib/config.yaml
