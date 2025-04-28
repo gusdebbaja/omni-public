@@ -11,18 +11,18 @@
     otelcol_config_dir: "/etc/otelcol-contrib"
     otelcol_config_path: "/etc/otelcol-contrib/config.yaml"
     otelcol_log_dir: "/var/log/otelcol-contrib"
-    otelcol_data_dir: "/var/lib/otelcol-contrib"
-    
+    otelcol_data_dir: "/etc/otelcol-contrib/data"  # Changed data directory
+
     # Package URLs - using version variable for flexibility
     otelcol_rpm_url: "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v{{ otelcol_contrib_version }}/otelcol-contrib_{{ otelcol_contrib_version }}_linux_amd64.rpm"
     otelcol_deb_url: "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v{{ otelcol_contrib_version }}/otelcol-contrib_{{ otelcol_contrib_version }}_linux_amd64.deb"
-    
+
     # Define the path to your external configuration template
     otelcol_config_template: "files/otelcol-contrib.yaml.j2"
-    
+
     # Force reinstall flag - can be overridden via command line
     force_reinstall: false
-    
+
     # Credentials - these should be in vault files
     # vault_splunk_token: "actual-token-here"
 
@@ -38,7 +38,7 @@
     - name: Fail if otelcol-contrib is already installed and force_reinstall is false
       fail:
         msg: "OpenTelemetry Collector is already installed at {{ which_otelcol.stdout }}. If you want to reinstall, use --extra-vars 'force_reinstall=true'."
-      when: 
+      when:
         - which_otelcol.rc == 0
         - not force_reinstall | bool
 
@@ -51,19 +51,19 @@
             state: stopped
             enabled: no
           failed_when: false
-          
+
         - name: Remove otelcol-contrib package on RedHat
           yum:
             name: otelcol-contrib
             state: absent
           when: ansible_os_family == 'RedHat'
-          
+
         - name: Remove otelcol-contrib package on Debian
           apt:
             name: otelcol-contrib
             state: absent
           when: ansible_os_family == 'Debian'
-          
+
         - name: Remove existing configuration files
           file:
             path: "{{ item }}"
@@ -73,15 +73,16 @@
             - "/etc/systemd/system/otelcol-contrib.service.d"
             - "/run/credentials/otelcol-contrib"
             - "/run/otelcol-contrib"
-            
+            - "/etc/otelcol-contrib/data"  # Remove old data dir if it exists
+
         - name: Reload systemd
           systemd:
             daemon_reload: yes
-            
+
         - name: Display reinstallation message
           debug:
             msg: "Existing OpenTelemetry Collector installation has been removed. Proceeding with fresh installation."
-      when: 
+      when:
         - which_otelcol.rc == 0
         - force_reinstall | bool
 
@@ -156,6 +157,33 @@
         group: otelcol-contrib
       register: config_deployed
 
+    # Create the log directory
+    - name: Create log directory
+      file:
+        path: "{{ otelcol_log_dir }}"
+        state: directory
+        owner: otelcol-contrib
+        group: otelcol-contrib
+        mode: '0755'
+
+    # Create the data directory in /etc/otelcol-contrib
+    - name: Create data directory
+      file:
+        path: "{{ otelcol_data_dir }}"
+        state: directory
+        owner: otelcol-contrib
+        group: otelcol-contrib
+        mode: '0755'
+
+    # Create the /etc/otelcol-contrib/otelcol-contrib.conf file
+    - name: Create /etc/otelcol-contrib/otelcol-contrib.conf
+      file:
+        path: "/etc/otelcol-contrib/otelcol-contrib.conf"
+        state: touch
+        owner: otelcol-contrib
+        group: otelcol-contrib
+        mode: '0644'
+
     # Configure systemd to use credentials
     - name: Create systemd environment directory
       file:
@@ -176,45 +204,39 @@
           [Service]
           # Load credentials securely
           LoadCredential=splunk_token:/run/credentials/otelcol-contrib/splunk_token
-          
-          # Dynamically create environment file at service start
-          ExecStartPre=/bin/sh -c 'mkdir -p /run/otelcol-contrib'
-          ExecStartPre=/bin/sh -c 'echo "# Environment variables for OpenTelemetry Collector" > /run/otelcol-contrib/env'
-          ExecStartPre=/bin/sh -c 'echo "# Auto-generated at service start - do not edit" >> /run/otelcol-contrib/env'
-          ExecStartPre=/bin/sh -c 'echo "pass_splunk_token=$$(cat $${CREDENTIALS_DIRECTORY}/splunk_token)" >> /run/otelcol-contrib/env'
-          ExecStartPre=/bin/chown otelcol-contrib:otelcol-contrib /run/otelcol-contrib/env
-          ExecStartPre=/bin/chmod 0400 /run/otelcol-contrib/env
-          
-          # Use the dynamically created environment file
-          EnvironmentFile=/run/otelcol-contrib/env
-          
-          # Clean up the environment file when the service stops
-          ExecStopPost=/bin/rm -f /run/otelcol-contrib/env
-          
-          # Additional security hardening
+
+          # Set the environment variable name expected by config.yaml
+          Environment=pass_splunk_token=${CREDENTIALS_DIRECTORY}/splunk_token
+
+          ExecStart=
+          ExecStart=/usr/bin/otelcol-contrib --config=/etc/otelcol-contrib/config.yaml
+
+          # Apply security hardening
           NoNewPrivileges=true
           ProtectHome=true
           PrivateTmp=true
           ProtectSystem=full
-          ReadWritePaths={{ otelcol_log_dir }} {{ otelcol_data_dir }} /run/otelcol-contrib
-
+          ReadWritePaths={{ otelcol_log_dir }} {{ otelcol_data_dir }}
+          
     # Validate configuration with temporary environment variables
     - name: Check configuration file syntax without full validation
       command: "{{ otelcol_binary_path }} validate --config={{ otelcol_config_path }}"
       register: config_validation
       failed_when: false
       environment:
-        pass_splunk_token: "{{ vault_splunk_token | default('00000000-0000-0000-0000-000000000000') }}"
-      
+        SPLUNK_TOKEN: "{{ vault_splunk_token | default('00000000-0000-0000-0000-000000000000') }}"
+
     - name: Display validation issues that aren't related to environment variables
       debug:
         msg: "Configuration validation output: {{ config_validation.stderr }}"
-      when: config_validation.rc != 0
-        
+      when:
+        - config_validation.rc != 0
+        - "'requires a non-empty' not in config_validation.stderr"
+
     - name: Fail on serious configuration syntax errors
       fail:
         msg: "Configuration validation failed with errors: {{ config_validation.stderr }}"
-      when: 
+      when:
         - config_validation.rc != 0
         - "'requires a non-empty' not in config_validation.stderr"
 
@@ -222,8 +244,8 @@
     - name: Set daemon reload
       systemd:
         daemon_reload: yes
-      
-    # Restart service with error handling
+
+    # Restart otelcol-contrib service
     - name: Restart otelcol-contrib service
       systemd:
         name: otelcol-contrib
@@ -238,61 +260,61 @@
           command: systemctl status otelcol-contrib
           register: service_status
           failed_when: false
-          
+
         - name: Display service status
           debug:
             msg: "{{ service_status.stdout_lines + service_status.stderr_lines }}"
-            
+
         - name: Get journalctl logs
           shell: journalctl -xeu otelcol-contrib.service --no-pager -n 50
           register: journalctl_output
           failed_when: false
-          
+
         - name: Display journalctl logs
           debug:
             msg: "{{ journalctl_output.stdout_lines }}"
-            
+
         - name: Check environment file presence
           stat:
             path: "/run/otelcol-contrib/env"
           register: env_file
-          
+
         - name: Display environment file status
           debug:
             msg: "Environment file status: {{ 'Exists' if env_file.stat.exists else 'Does not exist' }}"
-            
+
         - name: Display environment file content if it exists
           shell: "cat /run/otelcol-contrib/env || echo 'File does not exist or cannot be read'"
           register: env_content
           failed_when: false
           when: env_file.stat.exists
-          
+
         - name: Display environment content
           debug:
             msg: "{{ env_content.stdout_lines }}"
           when: env_file.stat.exists
-          
+
         - name: Check service capabilities
           shell: "grep CapabilityBoundingSet /proc/$(systemctl show -p MainPID otelcol-contrib.service | cut -d= -f2)/status 2>/dev/null || echo 'Process not running'"
           register: cap_output
           failed_when: false
-          
+
         - name: Display service capabilities
           debug:
             msg: "Service capabilities: {{ cap_output.stdout_lines }}"
-            
+
         - name: Check permissions on credentials directory
           command: ls -la /run/credentials/otelcol-contrib
           register: cred_perms
           failed_when: false
-          
+
         - name: Display credentials directory permissions
           debug:
             msg: "{{ cred_perms.stdout_lines }}"
-            
+
         - name: Fail with instructions
           fail:
-            msg: "Service failed to start. Review the logs above for more information. Ensure your configuration references the environment variables as ${pass_splunk_token} and ${pass_api_key} (not as vault_* variables)."
+            msg: "Service failed to start. Review the logs above for more information. Ensure your configuration references the environment variable as ${SPLUNK_TOKEN}."
       when: service_restart.failed
 
     # Final status check
