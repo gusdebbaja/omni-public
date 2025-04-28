@@ -1,0 +1,245 @@
+---
+- name: Uninstall OpenTelemetry Collector (Linux Only)
+  hosts: all
+  gather_facts: true
+  become: true
+
+  tasks:
+    # Check if otelcol-contrib binary exists (regardless of installation method)
+    - name: Check if otelcol-contrib is installed using which
+      command: which otelcol-contrib
+      register: which_otelcol
+      failed_when: false
+      changed_when: false
+
+    # Additional checks for common binary locations in case it's not in PATH
+    - name: Check common binary locations
+      stat:
+        path: "{{ item }}"
+      with_items:
+        - "/usr/bin/otelcol-contrib"
+        - "/usr/local/bin/otelcol-contrib"
+        - "/opt/otelcol-contrib/bin/otelcol-contrib"
+      register: binary_checks
+      when: which_otelcol.rc != 0
+
+    # Set installation status and binary path
+    - name: Set installation status and binary path
+      set_fact:
+        otelcol_installed: "{{ which_otelcol.rc == 0 or binary_checks.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | list | length > 0 }}"
+        otelcol_binary_path: "{{ which_otelcol.stdout if which_otelcol.rc == 0 else 
+                               (binary_checks.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | map(attribute='item') | list | first) 
+                               if (binary_checks.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | list | length > 0) 
+                               else '/bin/false' }}"
+
+    # Check if it's running as a service
+    - name: Check if otelcol-contrib is running as a service
+      command: systemctl status otelcol-contrib
+      register: service_status
+      failed_when: false
+      changed_when: false
+      when: otelcol_installed
+
+    - name: Set service status
+      set_fact:
+        service_running: "{{ service_status.rc == 0 }}"
+      when: otelcol_installed
+
+    # Stop the service if it's running
+    - name: Stop otelcol-contrib service
+      systemd:
+        name: otelcol-contrib
+        state: stopped
+        enabled: no
+      when: otelcol_installed and service_running is defined and service_running
+
+    # Check for running processes with ps instead of pgrep
+    - name: Check for otelcol-contrib processes
+      shell: ps -ef | grep -v grep | grep otelcol-contrib || echo ""
+      register: process_check
+      changed_when: false
+      ignore_errors: yes
+      when: otelcol_installed
+
+    # Try graceful termination if processes are found
+    - name: Try graceful termination
+      block:
+        - name: Send TERM signal to otelcol-contrib processes
+          shell: |
+            for pid in $(ps -ef | grep otelcol-contrib | grep -v grep | awk '{print $2}'); do
+              kill -TERM $pid || true
+            done
+          ignore_errors: yes
+          when: process_check.stdout | trim != ""
+          
+        # Wait a few seconds for graceful termination
+        - name: Wait for graceful termination
+          pause:
+            seconds: 5
+          when: process_check.stdout | trim != ""
+          
+        # Check if processes are still running
+        - name: Check if processes still exist after graceful termination
+          shell: ps -ef | grep -v grep | grep otelcol-contrib || echo ""
+          register: post_term_check
+          changed_when: false
+          ignore_errors: yes
+          when: process_check.stdout | trim != ""
+          
+    - name: Force kill otelcol-contrib processes if still running
+      shell: |
+        for pid in $(ps -ef | grep otelcol-contrib | grep -v grep | awk '{print $2}'); do
+          kill -9 $pid || true
+        done
+      ignore_errors: yes
+      when: post_term_check is defined and post_term_check.stdout is defined and post_term_check.stdout | trim != ""
+
+    # Wait for processes to terminate
+    - name: Wait for processes to terminate
+      wait_for:
+        path: "/proc/{{ item }}/status"
+        state: absent
+        timeout: 30
+      with_items: "{{ process_check.stdout_lines | default([]) }}"
+      ignore_errors: true
+      when: otelcol_installed and process_check.stdout != ""
+
+    # Force kill if necessary
+    - name: Force kill any remaining otelcol-contrib processes
+      shell: pkill -KILL -f otelcol-contrib || true
+      when: otelcol_installed and process_check.stdout != ""
+
+    # Check if it was installed via package manager
+    - name: Check if installed via RPM
+      command: rpm -q otelcol-contrib
+      register: rpm_check
+      failed_when: false
+      changed_when: false
+      when: otelcol_installed and ansible_os_family == 'RedHat'
+
+    - name: Check if installed via DEB
+      command: dpkg -l otelcol-contrib
+      register: deb_check
+      failed_when: false
+      changed_when: false
+      when: otelcol_installed and ansible_os_family == 'Debian'
+
+    # Determine installation type
+    - name: Set installation type
+      set_fact:
+        install_type: "{{ 'rpm' if (ansible_os_family == 'RedHat' and rpm_check.rc == 0) else 
+                         'deb' if (ansible_os_family == 'Debian' and deb_check.rc == 0) else 
+                         'manual' }}"
+      when: otelcol_installed
+
+
+    - name: Attempt to uninstall otelcol-contrib via package manager
+      yum:
+        name: otelcol-contrib
+        state: absent
+      register: yum_result
+      failed_when: false
+      when: otelcol_installed and install_type == 'rpm'
+
+    - name: Forcefully remove package with rpm if yum failed
+      block:
+        - name: Get package name with rpm
+          shell: rpm -qa | grep otelcol-contrib
+          register: rpm_pkg
+          failed_when: false
+          changed_when: false
+        
+        - name: Force remove package with rpm
+          shell: rpm -e --noscripts {{ rpm_pkg.stdout }}
+          when: rpm_pkg.stdout | trim != ""
+          ignore_errors: yes
+      when: otelcol_installed and install_type == 'rpm' and (yum_result is defined and yum_result.failed)
+
+    - name: Uninstall otelcol-contrib package on Debian
+      apt:
+        name: otelcol-contrib
+        state: absent
+      when: otelcol_installed and install_type == 'deb'
+
+    # Handle manual installation (tarball/binary)
+    - name: Remove binary file for manual installation
+      file:
+        path: "{{ otelcol_binary_path }}"
+        state: absent
+      when: otelcol_installed and install_type == 'manual'
+
+    # Remove service file for manual installations
+    - name: Remove systemd service file
+      file:
+        path: "/etc/systemd/system/otelcol-contrib.service"
+        state: absent
+      when: otelcol_installed
+
+    # Remove configuration directories and files (common for all installation types)
+    - name: Remove configuration directories and files
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "/etc/otelcol-contrib"
+        - "/var/log/otelcol-contrib"
+        - "/var/lib/otelcol-contrib"
+        - "/etc/systemd/system/otelcol-contrib.service.d"
+      when: otelcol_installed
+
+    # Check for and clean up other possible installation directories
+    - name: Check for other installation directories
+      stat:
+        path: "{{ item }}"
+      with_items:
+        - "/opt/otelcol-contrib"
+        - "/usr/local/otelcol-contrib"
+      register: other_dirs
+      when: otelcol_installed and install_type == 'manual'
+
+    - name: Remove other installation directories
+      file:
+        path: "{{ item.item }}"
+        state: absent
+      with_items: "{{ other_dirs.results | selectattr('stat.exists', 'defined') | selectattr('stat.exists') | list }}"
+      when: otelcol_installed and install_type == 'manual'
+
+    # Reload systemd
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+      when: otelcol_installed
+
+    - name: Ensure binary is removed
+      file:
+        path: "{{ otelcol_binary_path }}"
+        state: absent
+      when: otelcol_installed
+      ignore_errors: yes
+
+    - name: Verify otelcol-contrib was completely removed
+      command: which otelcol-contrib
+      register: verify_check
+      failed_when: false
+      changed_when: false
+
+    - name: Display verification result
+      debug:
+        msg: "WARNING: otelcol-contrib binary still exists at {{ verify_check.stdout }}! Manual cleanup may be required."
+      when: verify_check.rc == 0
+      
+    - name: Fail if binary still exists
+      fail:
+        msg: "Uninstallation failed - binary still exists at {{ verify_check.stdout }}"
+      when: verify_check.rc == 0 and not ignore_verification_failure | default(false)
+
+    # Display uninstallation results
+    - name: Display uninstallation results
+      debug:
+        msg: "OpenTelemetry Collector has been successfully uninstalled ({{ install_type }} installation)."
+      when: otelcol_installed
+
+    - name: Display not installed message
+      debug:
+        msg: "OpenTelemetry Collector was not installed on this system."
+      when: not otelcol_installed
