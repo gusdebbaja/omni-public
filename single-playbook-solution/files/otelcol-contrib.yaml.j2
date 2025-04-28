@@ -10,15 +10,6 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
-  filelog:
-    include: [ /opt/ping_results.log ]
-    start_at: beginning
-    operators:
-      - type: regex_parser
-        regex: '^(?P<timestamp>\d+) host=(?P<host>\S+) os=(?P<os>\S+) type=(?P<type>\S+)(?: ping_status=(?P<ping_status>\d))?(?: ssh_status=(?P<ssh_status>\d))?(?: sql_status=(?P<sql_status>\d))?'
-        timestamp:
-          parse_from: attributes.timestamp
-          layout: '%s'
   hostmetrics:
     collection_interval: 1m
     scrapers:
@@ -151,7 +142,6 @@ service:
       - debug
     logs:
       receivers:
-      - filelog
       - otlp
       processors:
       - batch
