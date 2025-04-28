@@ -1,0 +1,143 @@
+---
+- name: Deploy OpenTelemetry Collector Configuration
+  hosts: all
+  gather_facts: true
+  become: true
+
+  vars:
+    # Default paths - these will be determined by the package manager
+    otelcol_config_dir: "/etc/otelcol-contrib"
+    otelcol_config_path: "/etc/otelcol-contrib/config.yaml"
+    otelcol_binary_path: "/usr/bin/otelcol-contrib"
+    
+    # Define the path to your external configuration template
+    otelcol_config_template: "files/otelcol-contrib.yaml.j2"
+    
+    # Credentials - these should be in vault files
+    # vault_splunk_token: "actual-token-here"
+    # vault_api_key: "actual-api-key-here"
+
+  tasks:
+    # Verify OpenTelemetry Collector binary is installed
+    - name: Check if otelcol-contrib binary is installed
+      command: which otelcol-contrib
+      register: which_otelcol
+      failed_when: false
+      changed_when: false
+
+    - name: Fail if otelcol-contrib binary is not installed
+      fail:
+        msg: "OpenTelemetry Collector is not installed. Please run the install-linux.yml playbook first."
+      when: which_otelcol.rc != 0
+
+    # Check service status but don't fail if it's not running
+    - name: Check current service status
+      command: systemctl status otelcol-contrib
+      register: service_status_check
+      failed_when: false
+      changed_when: false
+
+    - name: Display service status warning if not running
+      debug:
+        msg: >
+          WARNING: The OpenTelemetry Collector service is currently not running or in a failed state.
+          This playbook will attempt to deploy the new configuration and restart the service,
+          which may fix the issue if it was caused by an invalid configuration.
+      when: service_status_check.rc != 0
+
+    # Get current configuration for comparison
+    - name: Get current configuration file checksum
+      stat:
+        path: "{{ otelcol_config_path }}"
+      register: existing_config
+      changed_when: false
+      failed_when: false
+      
+    # Deploy updated configuration file
+    - name: Deploy otelcol-contrib configuration
+      template:
+        src: "{{ otelcol_config_template }}"
+        dest: "{{ otelcol_config_path }}"
+        mode: 0644
+        owner: otelcol-contrib
+        group: otelcol-contrib
+      register: config_deployed
+
+    # Validate configuration with temporary environment variables
+    - name: Check configuration file syntax
+      command: "{{ otelcol_binary_path }} validate --config={{ otelcol_config_path }}"
+      register: config_validation
+      failed_when: false
+      environment:
+        pass_splunk_token: "{{ vault_splunk_token | default('00000000-0000-0000-0000-000000000000') }}"
+        pass_api_key: "{{ vault_api_key | default('my-api-key') }}"
+      
+    - name: Display validation issues
+      debug:
+        msg: "Configuration validation output: {{ config_validation.stderr }}"
+      when: config_validation.rc != 0
+        
+    - name: Fail on configuration syntax errors
+      fail:
+        msg: "Configuration validation failed with errors: {{ config_validation.stderr }}"
+      when: 
+        - config_validation.rc != 0
+        - "'requires a non-empty' not in config_validation.stderr"
+
+    # Restart service if configuration changed or if it's in a failed state
+    - name: Restart otelcol-contrib service
+      systemd:
+        name: otelcol-contrib
+        state: restarted
+      register: service_restart
+      failed_when: false
+      when: config_deployed.changed or service_status_check.rc != 0
+
+    # Collect troubleshooting information if service fails to start
+    - name: Collect troubleshooting information
+      block:
+        - name: Get service status
+          command: systemctl status otelcol-contrib
+          register: service_status
+          failed_when: false
+          
+        - name: Display service status
+          debug:
+            msg: "{{ service_status.stdout_lines + service_status.stderr_lines }}"
+            
+        - name: Get journalctl logs
+          shell: journalctl -xeu otelcol-contrib.service --no-pager -n 50
+          register: journalctl_output
+          failed_when: false
+          
+        - name: Display journalctl logs
+          debug:
+            msg: "{{ journalctl_output.stdout_lines }}"
+            
+        - name: Fail with instructions
+          fail:
+            msg: "Service failed to restart. Review the logs above for more information. Ensure your configuration references the environment variables as ${pass_splunk_token} and ${pass_api_key} (not as vault_* variables)."
+      when: service_restart.failed is defined and service_restart.failed
+
+    # Final status check with more graceful handling
+    - name: Verify otelcol-contrib service status
+      command: systemctl status otelcol-contrib
+      register: final_status
+      changed_when: false
+      failed_when: false
+      when: config_deployed.changed or service_restart is defined
+
+    # Display deployment results with service status information
+    - name: Display deployment results
+      debug:
+        msg: >
+          {% if config_deployed.changed %}
+          OpenTelemetry Collector configuration has been updated and service {{ 'restarted successfully' if final_status.rc == 0 else 'attempted to restart but may still have issues' }}.
+          {% else %}
+          No changes to OpenTelemetry Collector configuration were needed.
+          {% endif %}
+          
+          {% if final_status is defined and final_status.rc != 0 %}
+          NOTE: The service is not in a healthy state. Check logs with: journalctl -xeu otelcol-contrib.service
+          This could indicate a problem with the configuration or with the service itself.
+          {% endif %}
