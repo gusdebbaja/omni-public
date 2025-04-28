@@ -23,7 +23,7 @@ Installs or reinstalls the OpenTelemetry Collector Contrib with secure credentia
 - Provides detailed diagnostics for troubleshooting
 - Supports forced reinstallation
 
-### 2. `deploy-config.yml`
+### 2. `deploy-config-linux.yml`
 
 Updates the configuration of an existing OpenTelemetry Collector Contrib installation and restarts the service if needed.
 
@@ -40,7 +40,7 @@ Updates the configuration of an existing OpenTelemetry Collector Contrib install
 .
 ├── README.md
 ├── install-linux.yml
-├── deploy-config.yml
+├── deploy-config-linux.yml
 ├── ansible.cfg
 ├── inventory/
 │   └── hosts
