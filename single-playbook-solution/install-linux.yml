@@ -25,7 +25,6 @@
     
     # Credentials - these should be in vault files
     # vault_splunk_token: "actual-token-here"
-    # vault_api_key: "actual-api-key-here"
 
   tasks:
     # Check if otelcol-contrib is already installed
@@ -147,15 +146,6 @@
         group: otelcol-contrib
       no_log: true
 
-    - name: Create API key credential file
-      copy:
-        dest: "/run/credentials/otelcol-contrib/api_key"
-        content: "{{ vault_api_key | default('my-api-key') }}"
-        mode: 0400
-        owner: otelcol-contrib
-        group: otelcol-contrib
-      no_log: true
-
     # Deploy custom configuration file
     - name: Deploy otelcol-contrib configuration
       template:
@@ -186,14 +176,12 @@
           [Service]
           # Load credentials securely
           LoadCredential=splunk_token:/run/credentials/otelcol-contrib/splunk_token
-          LoadCredential=api_key:/run/credentials/otelcol-contrib/api_key
           
           # Dynamically create environment file at service start
           ExecStartPre=/bin/sh -c 'mkdir -p /run/otelcol-contrib'
           ExecStartPre=/bin/sh -c 'echo "# Environment variables for OpenTelemetry Collector" > /run/otelcol-contrib/env'
           ExecStartPre=/bin/sh -c 'echo "# Auto-generated at service start - do not edit" >> /run/otelcol-contrib/env'
           ExecStartPre=/bin/sh -c 'echo "pass_splunk_token=$$(cat $${CREDENTIALS_DIRECTORY}/splunk_token)" >> /run/otelcol-contrib/env'
-          ExecStartPre=/bin/sh -c 'echo "pass_api_key=$$(cat $${CREDENTIALS_DIRECTORY}/api_key)" >> /run/otelcol-contrib/env'
           ExecStartPre=/bin/chown otelcol-contrib:otelcol-contrib /run/otelcol-contrib/env
           ExecStartPre=/bin/chmod 0400 /run/otelcol-contrib/env
           
@@ -217,7 +205,6 @@
       failed_when: false
       environment:
         pass_splunk_token: "{{ vault_splunk_token | default('00000000-0000-0000-0000-000000000000') }}"
-        pass_api_key: "{{ vault_api_key | default('my-api-key') }}"
       
     - name: Display validation issues that aren't related to environment variables
       debug:
