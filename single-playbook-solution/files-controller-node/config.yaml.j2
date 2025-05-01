@@ -1,0 +1,92 @@
+receivers: ${file:/etc/otelcol-contrib/snmp-local-server.yaml}
+
+processors:
+  batch:
+    timeout: 5s
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 1000
+  resourcedetection:
+    detectors: [system, env]
+    system:
+      hostname_sources: [os]
+  resource/agent:
+    attributes:
+      - action: upsert
+        key: service.namespace
+        value: otelcol-contrib
+  attributes/agent:
+    actions:
+      - key: service.namespace
+        action: upsert
+        value: otel-contrib
+      - key: service.name
+        action: upsert
+        value: otel-collector-contrib
+
+exporters:
+  prometheus:
+    endpoint: "localhost:9464"
+  debug:
+    verbosity: detailed
+
+  splunk_hec/metrics:
+    token: "9f35633b-3296-463a-ad2f-86371dcb5053"
+    endpoint: "https://127.0.0.1:8088/services/collector"
+    sourcetype: "snmp-otelcol-metrics"
+    source: "otelcol-contrib"
+    index: pad4_ubuntu_metrics
+    tls:
+      insecure_skip_verify: true
+        
+  #otlphttp/grafana_cloud:
+  #  endpoint: "https://fakeendpoint.net/otlp"
+  #  auth:
+  #    authenticator: basicauth/grafana_cloud
+
+extensions:
+  #basicauth/grafana_cloud:
+  #  client_auth:
+  #    username: "username"
+  #    password: "token"
+  #host_observer/all_settings:
+  #  refresh_interval: 20s
+service:
+  telemetry:
+    logs:
+      level: info
+  #extensions: [basicauth/grafana_cloud, host_observer/all_settings]
+  pipelines:
+    metrics:
+      receivers:
+        #- filestats
+        - snmp
+        #- hostmetrics/perf
+      processors: 
+        - resource/agent
+        - attributes/agent
+        - batch
+        - memory_limiter
+        - resourcedetection
+      exporters:
+        - debug
+        - prometheus
+        #- splunk_hec/metrics 
+        #- otlphttp/grafana_cloud
+    #traces:
+    #  receivers:
+    #    #- filestats
+    #    - otlp
+          #- hostmetrics/perf
+    #  processors:
+    ##    - resource/agent
+    #    - attributes/agent
+    #    - batch
+    #    - memory_limiter
+    #    - resourcedetection
+      #exporters:
+        #- prometheus
+        #- splunk_hec/metrics 
+        #- otlphttp/grafana_cloud
+        #- debug
+
