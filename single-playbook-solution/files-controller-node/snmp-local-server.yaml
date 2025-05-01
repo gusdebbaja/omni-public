@@ -1,0 +1,107 @@
+snmp:
+  collection_interval: 60s
+  community: public
+  endpoint: udp://192.168.1.1:161
+  version: v2c
+
+  attributes:
+    interface.name:
+      oid: 1.3.6.1.2.1.2.2.1.2
+      description: Name of the network interface
+    device.name:
+      oid: 1.3.6.1.2.1.1.5.0
+    storage.type:
+      oid: 1.3.6.1.2.1.25.2.3.1.3
+      description: Type of storage (memory, disk, etc.)
+
+  resource_attributes:
+    sysName:
+      scalar_oid: 1.3.6.1.2.1.1.5.0
+    device.location:
+      scalar_oid: 1.3.6.1.2.1.1.6.0
+    device.type:
+      scalar_oid: 1.3.6.1.2.1.1.1.0
+
+  metrics:
+    interface.errors.in:
+      unit: '{errors}'
+      sum:
+        aggregation: cumulative
+        monotonic: true
+        value_type: int
+      column_oids:
+        - oid: "1.3.6.1.2.1.2.2.1.14"
+          attributes:
+            - name: interface.name
+          resource_attributes:
+            - sysName
+            - device.location
+
+    interface.errors.out:
+      description: Outgoing network errors
+      sum:
+        aggregation: cumulative
+        monotonic: true
+        value_type: int
+      unit: '{errors}'
+      column_oids:
+        - oid: 1.3.6.1.2.1.2.2.1.20
+          attributes:
+            - name: interface.name
+          resource_attributes:
+            - sysName
+            - device.location
+
+    interface.status:
+      description: Operational status of interface (1=up, 2=down)
+      gauge:
+        value_type: int
+      unit: "1"
+      column_oids:
+        - oid: 1.3.6.1.2.1.2.2.1.8
+          attributes:
+            - name: interface.name
+          resource_attributes:
+            - sysName
+            - device.location
+
+    interface.traffic.in:
+      description: Incoming network traffic
+      sum:
+        aggregation: cumulative
+        monotonic: true
+        value_type: int
+      unit: By
+      column_oids:
+        - oid: 1.3.6.1.2.1.2.2.1.10
+          attributes:
+            - name: interface.name
+          resource_attributes:
+            - sysName
+            - device.location
+
+    interface.traffic.out:
+      description: Outgoing network traffic
+      sum:
+        aggregation: cumulative
+        monotonic: true
+        value_type: int
+      unit: By
+      column_oids:
+        - oid: 1.3.6.1.2.1.2.2.1.16
+          attributes:
+            - name: interface.name
+          resource_attributes:
+            - sysName
+            - device.location
+
+    memory.available:
+      description: Available physical memory
+      gauge:
+        value_type: int
+      unit: By
+      scalar_oids:
+        - oid: 1.3.6.1.4.1.2021.4.6.0 # No resource_attributes here
+          resource_attributes:
+            - sysName
+            - device.location
